@@ -40,7 +40,7 @@ class TypedStorage<T> {
   public getItem<U extends keyof T>(
     key: U,
     retrievalMode: "fail" | "raw" | "safe" = "fail",
-  ): T[U] | null {
+  ): T[U] | string | null {
     const item = this.storage?.getItem(key.toString());
 
     if (item == null) {
@@ -54,7 +54,7 @@ class TypedStorage<T> {
         case "safe":
           return null;
         case "raw":
-          return item as unknown as T[U];
+          return item;
         default:
           throw error;
       }

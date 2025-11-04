@@ -22,9 +22,7 @@ createRoot(document.getElementById("root") as HTMLElement).render(
     <NotificationProvider>
       <QueryClientProvider client={queryClient}>
         <WalletProvider>
-          <BrowserRouter>
             <App />
-          </BrowserRouter>
         </WalletProvider>
       </QueryClientProvider>
     </NotificationProvider>
