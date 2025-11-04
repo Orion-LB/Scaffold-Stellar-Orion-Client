@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import orion from '../assets/orion.png';
-import './Navbar.css';
+import { useState, useEffect } from "react";
+import orion from "../assets/Orion.png";
+import "./Navbar.css";
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -11,31 +11,36 @@ const Navbar = () => {
       setIsScrolled(scrollY > 100); // Trigger after 100px scroll
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
     <header className="navbar-container">
-      <div className={`navbar-desktop ${isScrolled ? 'navbar-scrolled' : ''}`}>
+      <div className={`navbar-desktop ${isScrolled ? "navbar-scrolled" : ""}`}>
         {/* Logo */}
         <div className="navbar-logo">
           <div className="logo-placeholder">
             <div className="logo-icon">
-              <img 
-                src={orion} 
-                alt="Orion"
-              />
+              <img src={orion} alt="Orion" />
             </div>
           </div>
         </div>
 
         {/* Navigation Links */}
         <nav className="navbar-nav">
-          <a href="#features" className="nav-link">Features</a>
-          <a href="#pricing" className="nav-link">Pricing</a>
-          <a href="#changelog" className="nav-link">Changelog</a>
-          <a href="#contact" className="nav-link">Contact</a>
+          <a href="#features" className="nav-link">
+            Features
+          </a>
+          <a href="#pricing" className="nav-link">
+            Pricing
+          </a>
+          <a href="#changelog" className="nav-link">
+            Changelog
+          </a>
+          <a href="#contact" className="nav-link">
+            Contact
+          </a>
         </nav>
 
         {/* CTA Button */}
@@ -45,15 +50,12 @@ const Navbar = () => {
       </div>
 
       {/* Mobile Version */}
-      <div className={`navbar-mobile ${isScrolled ? 'navbar-scrolled' : ''}`}>
+      <div className={`navbar-mobile ${isScrolled ? "navbar-scrolled" : ""}`}>
         {/* Logo */}
         <div className="navbar-logo">
           <div className="logo-placeholder">
             <div className="logo-icon">
-              <img 
-                src={orion} 
-                alt="Orion"
-              />
+              <img src={orion} alt="Orion" />
             </div>
           </div>
         </div>
