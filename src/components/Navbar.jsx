@@ -44,7 +44,7 @@ const Navbar = () => {
         </nav>
 
         {/* CTA Button */}
-        <a href="#launch" className="cta-button">
+        <a href="/dashboard" className="cta-button">
           Launch App
         </a>
       </div>

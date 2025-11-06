@@ -48,6 +48,12 @@ export const NETWORK_CONFIG = {
 };
 
 // Service factory functions
+import { VaultService } from './VaultService';
+import { LendingPoolService } from './LendingPoolService';
+import { MockRWAService } from './MockRWAService';
+import { OracleService } from './OracleService';
+import type { StellarWalletProvider } from './ContractService';
+
 export const createVaultService = (wallet?: StellarWalletProvider, network: keyof typeof NETWORK_CONFIG = 'TESTNET') => {
   return new VaultService({
     contractId: CONTRACT_ADDRESSES.RWA_VAULT_A,

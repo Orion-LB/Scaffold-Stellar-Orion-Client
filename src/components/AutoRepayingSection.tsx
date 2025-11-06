@@ -65,7 +65,7 @@ const AutoRepayingSection = () => {
           <p className="font-inter text-sm font-medium text-primary mb-3 uppercase tracking-wider">
             Effortless Deployment
           </p>
-          <h2 className="font-jakarta text-5xl md:text-[56px] font-italic text-foreground mb-4">
+          <h2 className="font-antic text-5xl md:text-[56px] font-italic text-foreground mb-4">
             Auto-Repaying Loans
           </h2>
           <p className="font-inter text-base md:text-lg text-foreground/80 max-w-2xl mx-auto">

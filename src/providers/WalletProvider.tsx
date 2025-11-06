@@ -8,32 +8,41 @@ import {
 } from "react";
 import { wallet } from "../util/wallet";
 import storage from "../util/storage";
+import type { StellarWalletProvider, SignOptions, SignedTransaction } from "../services/contracts/ContractService";
 
-export interface WalletContextType {
-  address?: string;
+export interface WalletContextType extends StellarWalletProvider {
   network?: string;
-  networkPassphrase?: string;
   isPending: boolean;
-  signTransaction?: typeof wallet.signTransaction;
+  isConnected: boolean;
+  connect: () => Promise<void>;
+  disconnect: () => Promise<void>;
 }
 
 const initialState = {
-  address: undefined,
+  address: "",
   network: undefined,
-  networkPassphrase: undefined,
+  networkPassphrase: "",
+  isConnected: false,
 };
 
 const POLL_INTERVAL = 1000;
 
 export const WalletContext = // eslint-disable-line react-refresh/only-export-components
-  createContext<WalletContextType>({ isPending: true });
+  createContext<WalletContextType>({
+    address: "",
+    networkPassphrase: "",
+    isPending: true,
+    isConnected: false,
+    signTransaction: async () => ({ signedTxXdr: "" }),
+    connect: async () => {},
+    disconnect: async () => {},
+  });
 
 export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, setState] =
-    useState<Omit<WalletContextType, "isPending">>(initialState);
+    useState<Omit<WalletContextType, "isPending" | "connect" | "disconnect" | "signTransaction">>(initialState);
   const [isPending, startTransition] = useTransition();
   const popupLock = useRef(false);
-  const signTransaction = wallet.signTransaction.bind(wallet);
 
   const nullify = () => {
     updateState(initialState);
@@ -43,12 +52,59 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     storage.setItem("networkPassphrase", "");
   };
 
-  const updateState = (newState: Omit<WalletContextType, "isPending">) => {
-    setState((prev: Omit<WalletContextType, "isPending">) => {
+  // Soroban-compatible sign transaction function
+  const signTransaction = async (xdr: string, options: SignOptions): Promise<SignedTransaction> => {
+    try {
+      const result = await wallet.signTransaction(xdr, {
+        address: options.address,
+        networkPassphrase: options.networkPassphrase,
+      });
+      
+      // Handle different return types from different wallets
+      let signedTxXdr: string;
+      if (typeof result === 'string') {
+        signedTxXdr = result;
+      } else if (result && typeof result === 'object' && 'signedTxXdr' in result) {
+        signedTxXdr = result.signedTxXdr;
+      } else {
+        throw new Error('Invalid signature result format');
+      }
+      
+      return { signedTxXdr };
+    } catch (error) {
+      console.error('Transaction signing failed:', error);
+      throw error;
+    }
+  };
+
+  const connect = async () => {
+    try {
+      const { connectWallet } = await import("../util/wallet");
+      await connectWallet();
+    } catch (error) {
+      console.error('Wallet connection failed:', error);
+      throw error;
+    }
+  };
+
+  const disconnect = async () => {
+    try {
+      const { disconnectWallet } = await import("../util/wallet");
+      await disconnectWallet();
+      nullify();
+    } catch (error) {
+      console.error('Wallet disconnection failed:', error);
+      throw error;
+    }
+  };
+
+  const updateState = (newState: Omit<WalletContextType, "isPending" | "connect" | "disconnect" | "signTransaction">) => {
+    setState((prev: Omit<WalletContextType, "isPending" | "connect" | "disconnect" | "signTransaction">) => {
       if (
         prev.address !== newState.address ||
         prev.network !== newState.network ||
-        prev.networkPassphrase !== newState.networkPassphrase
+        prev.networkPassphrase !== newState.networkPassphrase ||
+        prev.isConnected !== newState.isConnected
       ) {
         return newState;
       }
@@ -75,6 +131,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
         address: walletAddr,
         network: walletNetwork,
         networkPassphrase: passphrase,
+        isConnected: true,
       });
     }
 
@@ -101,7 +158,11 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
           n.networkPassphrase !== state.networkPassphrase
         ) {
           storage.setItem("walletAddress", a.address);
-          updateState({ ...a, ...n });
+          updateState({ 
+            ...a, 
+            ...n, 
+            isConnected: Boolean(a.address)
+          });
         }
       } catch (e) {
         // If `getNetwork` or `getAddress` throw errors... sign the user out???
@@ -153,8 +214,10 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       ...state,
       isPending,
       signTransaction,
+      connect,
+      disconnect,
     }),
-    [state, isPending, signTransaction],
+    [state, isPending],
   );
 
   return <WalletContext value={contextValue}>{children}</WalletContext>;
