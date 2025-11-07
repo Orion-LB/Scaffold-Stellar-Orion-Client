@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import orion from "@/assets/Orion.png";
+import orion from "@/assets/OrionBg.png";
 
 const DashboardNavbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);

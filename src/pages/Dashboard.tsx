@@ -4,6 +4,7 @@ import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import StakeSection from "@/components/dashboard/StakeSection";
 import BorrowSection from "@/components/dashboard/BorrowSection";
 import ProfileSection from "@/components/dashboard/ProfileSection";
+import HeroBackground from "@/components/HeroBackground";
 
 const Dashboard = () => {
   const [activeSection, setActiveSection] = useState<'stake' | 'borrow' | 'profile'>('stake');
@@ -23,7 +24,9 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="h-screen overflow-hidden bg-background">
+    <div className="h-screen  bg-background">
+            <HeroBackground />
+      
       <DashboardNavbar />
       
       <div className="relative h-full pt-16">
@@ -36,14 +39,14 @@ const Dashboard = () => {
         />
         
         {/* Top Layer - Main Dashboard Content */}
-        <main 
-          className={`f  overflow-hidden z-20  ${
-            sidebarCollapsed 
-              ? 'left-14' // Overlap sidebar when collapsed (16px + 16px margin = 32px, overlap at 56px)
-              : 'left-56' // Overlap sidebar when expanded (256px + 16px margin = 272px, overlap at 224px)
+        <main
+          className={`fixed top-16 bottom-0 right-0 transition-all duration-300 overflow-hidden z-20 ${
+            sidebarCollapsed
+              ? 'left-20' // Give space for collapsed sidebar (64px + 16px margin)
+              : 'left-72' // Give space for expanded sidebar (256px + 16px margin)
           }`}
         >
-          <div className="h-full p-6 md:p-8 overflow-hidden">
+          <div className="h-full overflow-hidden">
             {renderActiveSection()}
           </div>
         </main>

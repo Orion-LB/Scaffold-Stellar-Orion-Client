@@ -2,50 +2,40 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   PieChart, 
   Pie, 
   Cell, 
   ResponsiveContainer, 
-  LineChart, 
-  Line, 
+  AreaChart,
+  Area,
   XAxis, 
-  YAxis, 
-  Tooltip,
-  BarChart,
-  Bar
+  YAxis,
+  CartesianGrid
 } from "recharts";
 import { 
-  Wallet, 
   TrendingUp, 
   Shield, 
-  AlertTriangle, 
   DollarSign, 
-  RefreshCw, 
-  ExternalLink,
-  Zap,
   Activity,
-  Target,
-  Clock
+  Zap,
+  ChevronRight
 } from "lucide-react";
+import HeroBackground from "@/components/HeroBackground";
 
 const ProfileSection = () => {
-  const [autoRepayStates, setAutoRepayStates] = useState<Record<string, boolean>>({
-    loan1: true,
-    loan2: false
-  });
+  const [autoRepayEnabled, setAutoRepayEnabled] = useState(true);
   const [showAutoRepayModal, setShowAutoRepayModal] = useState(false);
-  const [selectedLoan, setSelectedLoan] = useState<string | null>(null);
-  const [modalAction, setModalAction] = useState<'enable' | 'disable'>('enable');
+  const [showPortfolioModal, setShowPortfolioModal] = useState(false);
+  const [showYieldModal, setShowYieldModal] = useState(false);
+  const [showActivityModal, setShowActivityModal] = useState(false);
 
   // Mock data
   const portfolioData = [
-    { name: 'Staked RWA', value: 42500, color: '#774be5' },
-    { name: 'Available Balance', value: 8500, color: '#323d68' },
-    { name: 'Borrowed Assets', value: 15000, color: '#d8dfe5' }
+    { name: 'Staked', value: 42500, color: '#774be5' },
+    { name: 'Available', value: 8500, color: '#10b981' },
+    { name: 'Borrowed', value: 15000, color: '#f59e0b' }
   ];
 
   const yieldHistory = [
@@ -58,410 +48,388 @@ const ProfileSection = () => {
   ];
 
   const walletBalances = [
-    { asset: 'alexRWA', balance: '1,250.00', value: '$62,500', change: '+2.4%' },
-    { asset: 'OrionAlexRWA', balance: '850.50', value: '$42,525', change: '+5.1%' },
-    { asset: 'USDC', balance: '15,000.00', value: '$15,000', change: '0.0%' },
-    { asset: 'XLM', balance: '2,500.00', value: '$350', change: '-1.2%' }
+    { asset: "OrionAlexRWA", balance: "850.50", value: "$42,525", color: "#774be5" },
+    { asset: "USDC", balance: "15,000.00", value: "$15,000", color: "#10b981" },
+    { asset: "XLM", balance: "2,500.00", value: "$350", color: "#f59e0b" }
   ];
 
-  const activeLoans = [
-    {
-      id: 'loan1',
-      asset: 'USDC',
-      borrowed: '10,000.00',
-      collateral: '450.25 OrionAlexRWA',
-      interestOwed: '125.50',
-      healthFactor: 2.45,
-      autoRepay: true,
-      loanDate: '2024-01-15'
-    },
-    {
-      id: 'loan2',
-      asset: 'XLM',
-      borrowed: '5,000.00',
-      collateral: '200.75 OrionAlexRWA',
-      interestOwed: '45.25',
-      healthFactor: 1.85,
-      autoRepay: false,
-      loanDate: '2024-02-01'
-    }
+  const recentTransactions = [
+    { type: "Stake", asset: "alexRWA", amount: "500.00", date: "Mar 15", status: "Completed" },
+    { type: "Borrow", asset: "USDC", amount: "5,000.00", date: "Mar 14", status: "Completed" },
+    { type: "Auto-Repay", asset: "USDC", amount: "25.50", date: "Mar 13", status: "Completed" },
+    { type: "Unstake", asset: "OrionAlexRWA", amount: "100.00", date: "Mar 12", status: "Pending" },
+    { type: "Claim", asset: "Yield", amount: "45.25", date: "Mar 11", status: "Completed" }
   ];
 
-  const transactions = [
-    { id: 1, type: 'Stake', asset: 'alexRWA', amount: '500.00', status: 'Completed', date: '2024-03-15', hash: 'abc123...' },
-    { id: 2, type: 'Borrow', asset: 'USDC', amount: '5,000.00', status: 'Completed', date: '2024-03-14', hash: 'def456...' },
-    { id: 3, type: 'Auto-Repay', asset: 'USDC', amount: '25.50', status: 'Completed', date: '2024-03-13', hash: 'ghi789...' },
-    { id: 4, type: 'Unstake', asset: 'OrionAlexRWA', amount: '100.00', status: 'Pending', date: '2024-03-12', hash: 'jkl012...' }
-  ];
-
-  const handleAutoRepayToggle = (loanId: string, enabled: boolean) => {
-    setSelectedLoan(loanId);
-    setModalAction(enabled ? 'enable' : 'disable');
+  const handleAutoRepayToggle = () => {
     setShowAutoRepayModal(true);
   };
 
   const confirmAutoRepayChange = () => {
-    if (selectedLoan) {
-      setAutoRepayStates({
-        ...autoRepayStates,
-        [selectedLoan]: modalAction === 'enable'
-      });
-    }
+    setAutoRepayEnabled(!autoRepayEnabled);
     setShowAutoRepayModal(false);
   };
 
-  const getHealthFactorColor = (hf: number) => {
-    if (hf >= 2) return "text-green-600";
-    if (hf >= 1.5) return "text-yellow-600";
-    if (hf >= 1.1) return "text-orange-600";
-    return "text-red-600";
-  };
-
-  const getHealthFactorBg = (hf: number) => {
-    if (hf >= 2) return "bg-green-100";
-    if (hf >= 1.5) return "bg-yellow-100";
-    if (hf >= 1.1) return "bg-orange-100";
-    return "bg-red-100";
-  };
-
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="font-antic text-3xl md:text-4xl font-semibold text-foreground mb-3">
-          Portfolio Dashboard
-        </h1>
-        <p className="font-inter text-lg text-muted-foreground max-w-2xl mx-auto">
-          Monitor your staked assets, active loans, and portfolio performance
-        </p>
-      </div>
+    <>
+      <div className="h-full relative overflow-hidden">
+        <div className="relative z-50 p-6 h-full">
+          {/* Header */}
+          <div className="text-center mb-6">
+            <h1 className="font-antic text-xl font-semibold text-foreground mb-1">
+              Portfolio Overview
+            </h1>
+            <p className="font-plus-jakarta text-sm text-muted-foreground">
+              Monitor your investments and earnings
+            </p>
+          </div>
 
-      {/* Portfolio Overview */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Total Portfolio Value */}
-        <div className="lg:col-span-1">
-          <div className="bg-white/95 backdrop-blur-md rounded-2xl p-6 card-shadow">
-            <div className="text-center mb-4">
-              <div className="font-inter text-sm text-muted-foreground mb-2">Total Portfolio Value</div>
-              <div className="font-antic text-3xl font-semibold text-foreground">$66,000</div>
-              <div className="font-inter text-sm text-green-600 flex items-center justify-center gap-1">
-                <TrendingUp className="w-4 h-4" />
-                +8.2% this month
-              </div>
-            </div>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={portfolioData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {portfolioData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: number) => [`$${value.toLocaleString()}`, 'Value']} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="space-y-2">
-              {portfolioData.map((entry, index) => (
-                <div key={entry.name} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }}></div>
-                    <span className="font-inter text-muted-foreground">{entry.name}</span>
+          {/* Static Grid - 4 Cards */}
+          <div className="grid grid-cols-2 gap-6 h-[calc(100%-120px)]">
+            
+            {/* Card 1: Portfolio Value - Clickable */}
+            <div 
+              onClick={() => setShowPortfolioModal(true)}
+              className="relative overflow-hidden rounded-xl p-6 shadow-lg border border-gray-100 cursor-pointer hover:shadow-xl transition-all duration-300"
+              style={{
+                background: `
+                  radial-gradient(circle at 85% 85%, rgba(216, 223, 229, 0.4) 0%, rgba(216, 223, 229, 0.15) 30%, transparent 70%),
+                  radial-gradient(circle at 20% 20%, rgba(216, 223, 229, 0.1) 0%, transparent 50%),
+                  white
+                `
+              }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <TrendingUp className="w-5 h-5 text-primary" />
                   </div>
-                  <span className="font-inter font-medium text-foreground">${entry.value.toLocaleString()}</span>
+                  <div>
+                    <h3 className="font-plus-jakarta font-semibold text-foreground">Portfolio</h3>
+                    <p className="text-xs text-muted-foreground">Total value</p>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Yield Earnings & Risk Management */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Yield Earnings Card */}
-          <div className="bg-white/95 backdrop-blur-md rounded-2xl p-6 card-shadow">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-antic text-xl font-semibold text-foreground">Yield Earnings</h3>
-              <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
-                <TrendingUp className="w-3 h-3 mr-1" />
-                Active
-              </Badge>
-            </div>
-            <div className="grid md:grid-cols-3 gap-4 mb-6">
-              <div className="text-center">
-                <div className="font-inter text-sm text-muted-foreground mb-1">Total Earned</div>
-                <div className="font-antic text-2xl font-semibold text-foreground">$3,425</div>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
               </div>
-              <div className="text-center">
-                <div className="font-inter text-sm text-muted-foreground mb-1">Claimable Now</div>
-                <div className="font-antic text-2xl font-semibold text-primary">$425.50</div>
-              </div>
-              <div className="text-center">
-                <div className="font-inter text-sm text-muted-foreground mb-1">Auto-Repay Used</div>
-                <div className="font-antic text-2xl font-semibold text-blue-600">$2,150</div>
-              </div>
-            </div>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={yieldHistory}>
-                  <XAxis dataKey="month" className="text-xs" />
-                  <YAxis className="text-xs" />
-                  <Tooltip formatter={(value: number) => [`$${value}`, 'Yield']} />
-                  <Line 
-                    type="monotone" 
-                    dataKey="yield" 
-                    stroke="#774be5" 
-                    strokeWidth={3}
-                    dot={{ fill: '#774be5', strokeWidth: 2, r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            <Button className="w-full mt-4 btn-gradient text-white font-inter font-medium py-3 rounded-[12px]">
-              <DollarSign className="w-4 h-4 mr-2" />
-              Claim Available Yield
-            </Button>
-          </div>
-
-          {/* Risk Management */}
-          <div className="bg-white/95 backdrop-blur-md rounded-2xl p-6 card-shadow">
-            <h3 className="font-antic text-xl font-semibold text-foreground mb-6">Risk Management</h3>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-inter font-medium text-foreground">Overall LTV</span>
-                  <span className="font-inter font-semibold text-foreground">65.2%</span>
+              
+              <div className="space-y-2">
+                <div className="font-antic text-3xl font-bold text-foreground">$66,000</div>
+                <div className="flex items-center gap-1 text-green-600">
+                  <TrendingUp className="w-4 h-4" />
+                  <span className="font-plus-jakarta text-sm">+8.2% this month</span>
                 </div>
-                <Progress value={65.2} className="h-3 mb-4" />
-                <div className="text-xs text-muted-foreground">Max recommended: 70%</div>
+                <div className="text-xs text-muted-foreground mt-3">
+                  3 assets • Click for details
+                </div>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-                  <Shield className="w-8 h-8 text-green-600" />
+            </div>
+
+            {/* Card 2: Yield Earnings - Clickable */}
+            <div 
+              onClick={() => setShowYieldModal(true)}
+              className="relative overflow-hidden rounded-xl p-6 shadow-lg border border-gray-100 cursor-pointer hover:shadow-xl transition-all duration-300"
+              style={{
+                background: `
+                  radial-gradient(ellipse at 90% 80%, rgba(216, 223, 229, 0.5) 0%, rgba(216, 223, 229, 0.2) 25%, transparent 65%),
+                  radial-gradient(circle at 15% 30%, rgba(216, 223, 229, 0.08) 0%, transparent 40%),
+                  white
+                `
+              }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                    <DollarSign className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-plus-jakarta font-semibold text-foreground">Yield</h3>
+                    <p className="text-xs text-muted-foreground">Earnings</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </div>
+
+              <div className="space-y-2">
+                <div className="font-antic text-3xl font-bold text-foreground">$425.50</div>
+                <div className="text-sm text-muted-foreground">Available to claim</div>
+                <div className="text-xs text-muted-foreground mt-3">
+                  Total earned: $3,425 • Click for chart
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Risk & Loans */}
+            <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <div className="font-inter font-medium text-foreground">Risk Level</div>
-                  <div className="font-inter text-sm text-green-600">Low Risk</div>
-                  <div className="font-inter text-xs text-muted-foreground">All positions healthy</div>
+                  <h3 className="font-plus-jakarta font-semibold text-foreground">Risk & Loans</h3>
+                  <p className="text-xs text-muted-foreground">Health status</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="text-center p-3 bg-green-50 rounded-lg">
+                    <div className="font-antic text-lg font-bold text-green-600">2.45</div>
+                    <div className="text-xs text-green-700">Health Factor</div>
+                  </div>
+                  <div className="text-center p-3 bg-orange-50 rounded-lg">
+                    <div className="font-antic text-lg font-bold text-foreground">$15,170</div>
+                    <div className="text-xs text-orange-700">Total Debt</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <div>
+                    <div className="font-plus-jakarta text-sm font-medium text-foreground">Auto-Repay</div>
+                    <div className="text-xs text-muted-foreground">Use yield for repayment</div>
+                  </div>
+                  <Switch
+                    checked={autoRepayEnabled}
+                    onCheckedChange={handleAutoRepayToggle}
+                    className="data-[state=checked]:bg-primary"
+                  />
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Wallet Balances & Active Loans */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Wallet Balances */}
-        <div className="bg-white/95 backdrop-blur-md rounded-2xl p-6 card-shadow">
-          <h3 className="font-antic text-xl font-semibold text-foreground mb-6">Wallet Balances</h3>
-          <div className="space-y-4">
-            {walletBalances.map((balance, index) => (
-              <div key={balance.asset} className="flex items-center justify-between p-4 bg-muted/20 rounded-xl">
+            {/* Card 4: Recent Activity - Clickable */}
+            <div 
+              onClick={() => setShowActivityModal(true)}
+              className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 cursor-pointer hover:shadow-xl transition-shadow"
+            >
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Wallet className="w-5 h-5 text-primary" />
+                  <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <Activity className="w-5 h-5 text-orange-600" />
                   </div>
                   <div>
-                    <div className="font-inter font-medium text-foreground">{balance.asset}</div>
-                    <div className="font-inter text-sm text-muted-foreground">{balance.balance}</div>
+                    <h3 className="font-plus-jakarta font-semibold text-foreground">Activity</h3>
+                    <p className="text-xs text-muted-foreground">Recent transactions</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="font-inter font-semibold text-foreground">{balance.value}</div>
-                  <div className={`font-inter text-sm ${
-                    balance.change.startsWith('+') ? 'text-green-600' : 
-                    balance.change.startsWith('-') ? 'text-red-600' : 'text-muted-foreground'
-                  }`}>
-                    {balance.change}
-                  </div>
-                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Active Loans */}
-        <div className="bg-white/95 backdrop-blur-md rounded-2xl p-6 card-shadow">
-          <h3 className="font-antic text-xl font-semibold text-foreground mb-6">Active Loans</h3>
-          <div className="space-y-4">
-            {activeLoans.map((loan) => (
-              <div key={loan.id} className="p-4 border border-border/30 rounded-xl">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <div className="font-inter font-medium text-foreground flex items-center gap-2">
-                      {loan.asset} Loan
-                      <Badge className={getHealthFactorBg(loan.healthFactor)}>
-                        HF: {loan.healthFactor.toFixed(2)}
-                      </Badge>
-                    </div>
-                    <div className="font-inter text-sm text-muted-foreground">
-                      Borrowed: {loan.borrowed} • Interest: ${loan.interestOwed}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-inter text-xs text-muted-foreground">Auto-Repay</span>
-                    <Switch
-                      checked={autoRepayStates[loan.id]}
-                      onCheckedChange={(checked) => handleAutoRepayToggle(loan.id, checked)}
-                      className="data-[state=checked]:bg-primary"
-                    />
-                  </div>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Collateral: {loan.collateral}
-                </div>
-                {loan.healthFactor < 1.5 && (
-                  <div className="flex items-center gap-2 mt-2 text-orange-600 text-sm">
-                    <AlertTriangle className="w-4 h-4" />
-                    <span>Monitor health factor closely</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 p-4 bg-primary/5 rounded-xl">
-            <div className="font-inter text-sm text-foreground mb-1">Total Debt</div>
-            <div className="font-antic text-xl font-semibold text-foreground">$15,170.75</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Transaction History */}
-      <div className="bg-white/95 backdrop-blur-md rounded-2xl p-6 card-shadow">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="font-antic text-xl font-semibold text-foreground">Transaction History</h3>
-          <Button variant="outline" className="font-inter font-medium">
-            Export History
-          </Button>
-        </div>
-        
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-6">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="stake">Stake</TabsTrigger>
-            <TabsTrigger value="borrow">Borrow</TabsTrigger>
-            <TabsTrigger value="repay">Repay</TabsTrigger>
-            <TabsTrigger value="unstake">Unstake</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="all">
-            <div className="space-y-3">
-              {transactions.map((tx) => (
-                <div key={tx.id} className="flex items-center justify-between p-4 border border-border/30 rounded-xl hover:bg-muted/10 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      tx.type === 'Stake' ? 'bg-green-100' :
-                      tx.type === 'Borrow' ? 'bg-blue-100' :
-                      tx.type === 'Auto-Repay' ? 'bg-purple-100' :
-                      'bg-orange-100'
-                    }`}>
-                      {tx.type === 'Stake' && <TrendingUp className="w-5 h-5 text-green-600" />}
-                      {tx.type === 'Borrow' && <DollarSign className="w-5 h-5 text-blue-600" />}
-                      {tx.type === 'Auto-Repay' && <Zap className="w-5 h-5 text-purple-600" />}
-                      {tx.type === 'Unstake' && <RefreshCw className="w-5 h-5 text-orange-600" />}
-                    </div>
+              
+              <div className="space-y-3">
+                {recentTransactions.slice(0, 2).map((tx, index) => (
+                  <div key={index} className="flex items-center justify-between">
                     <div>
-                      <div className="font-inter font-medium text-foreground">
-                        {tx.type} {tx.asset}
-                      </div>
-                      <div className="font-inter text-sm text-muted-foreground">
-                        {tx.date} • {tx.amount}
-                      </div>
+                      <div className="font-plus-jakarta text-sm font-medium text-foreground">{tx.type}</div>
+                      <div className="text-xs text-muted-foreground">{tx.date}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-plus-jakarta font-semibold text-foreground">{tx.amount}</div>
+                      <Badge className="bg-green-100 text-green-700 text-xs">{tx.status}</Badge>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Badge className={
-                      tx.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                    }>
+                ))}
+                <div className="text-xs text-muted-foreground text-center pt-2">
+                  +{recentTransactions.length - 2} more • Click to view all
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Portfolio Details Modal */}
+        <Dialog open={showPortfolioModal} onOpenChange={setShowPortfolioModal}>
+          <DialogContent className="max-w-lg bg-white rounded-2xl border border-gray-200">
+            <DialogHeader>
+              <DialogTitle className="font-antic text-xl font-semibold text-foreground text-center">
+                Portfolio Details
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-6">
+              {/* Portfolio Chart */}
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={portfolioData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={40}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {portfolioData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Portfolio Breakdown */}
+              <div className="space-y-3">
+                {portfolioData.map((entry) => (
+                  <div key={entry.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: entry.color }}></div>
+                      <span className="font-plus-jakarta font-medium text-foreground">{entry.name}</span>
+                    </div>
+                    <span className="font-antic font-bold text-foreground">${entry.value.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Wallet Assets */}
+              <div className="border-t border-gray-200 pt-4">
+                <h4 className="font-plus-jakarta font-semibold text-foreground mb-3">Wallet Assets</h4>
+                <div className="space-y-2">
+                  {walletBalances.map((balance) => (
+                    <div key={balance.asset} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: balance.color }}></div>
+                        <span className="text-sm font-plus-jakarta text-foreground">{balance.asset}</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-plus-jakarta font-semibold text-foreground">{balance.value}</div>
+                        <div className="text-xs text-muted-foreground">{balance.balance}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Yield Details Modal */}
+        <Dialog open={showYieldModal} onOpenChange={setShowYieldModal}>
+          <DialogContent className="max-w-lg bg-white rounded-2xl border border-gray-200">
+            <DialogHeader>
+              <DialogTitle className="font-antic text-xl font-semibold text-foreground text-center">
+                Yield Earnings
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-6">
+              {/* Yield Metrics */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <div className="font-antic text-2xl font-bold text-green-600">$425.50</div>
+                  <div className="text-sm text-green-700">Claimable Now</div>
+                </div>
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <div className="font-antic text-2xl font-bold text-blue-600">$3,425</div>
+                  <div className="text-sm text-blue-700">Total Earned</div>
+                </div>
+              </div>
+
+              {/* Yield Chart */}
+              <div className="h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={yieldHistory}>
+                    <defs>
+                      <linearGradient id="yieldGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.05}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Area 
+                      type="monotone" 
+                      dataKey="yield" 
+                      stroke="#10b981" 
+                      strokeWidth={2}
+                      fill="url(#yieldGradient)"
+                      dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              
+              <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-plus-jakarta">
+                Claim Available Yield
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Activity Details Modal */}
+        <Dialog open={showActivityModal} onOpenChange={setShowActivityModal}>
+          <DialogContent className="max-w-lg bg-white rounded-2xl border border-gray-200">
+            <DialogHeader>
+              <DialogTitle className="font-antic text-xl font-semibold text-foreground text-center">
+                Transaction History
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {recentTransactions.map((tx, index) => (
+                <div key={index} className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-plus-jakarta font-medium text-foreground">{tx.type}</div>
+                    <Badge className={tx.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}>
                       {tx.status}
                     </Badge>
-                    <Button variant="ghost" size="sm">
-                      <ExternalLink className="w-4 h-4" />
-                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm text-muted-foreground">{tx.asset}</div>
+                      <div className="text-sm text-muted-foreground">{tx.date}</div>
+                    </div>
+                    <div className="text-lg font-plus-jakarta font-bold text-foreground">{tx.amount}</div>
                   </div>
                 </div>
               ))}
             </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+          </DialogContent>
+        </Dialog>
 
-      {/* Auto-Repay Modal */}
-      <Dialog open={showAutoRepayModal} onOpenChange={setShowAutoRepayModal}>
-        <DialogContent className="max-w-lg bg-white/95 backdrop-blur-md border-white/50">
-          <DialogHeader>
-            <DialogTitle className="font-antic text-xl font-semibold text-foreground flex items-center gap-3">
-              <Zap className="w-5 h-5 text-primary" />
-              {modalAction === 'enable' ? 'Enable' : 'Disable'} Auto-Repay
-            </DialogTitle>
-            <DialogDescription className="font-inter text-muted-foreground">
-              {modalAction === 'enable' 
-                ? 'Configure automatic yield-based loan repayment'
-                : 'Disable automatic repayment for this loan'
-              }
-            </DialogDescription>
-          </DialogHeader>
+        {/* Auto-Repay Modal */}
+        <Dialog open={showAutoRepayModal} onOpenChange={setShowAutoRepayModal}>
+          <DialogContent className="max-w-md bg-white rounded-2xl border border-gray-200">
+            <DialogHeader>
+              <DialogTitle className="font-antic text-lg font-semibold text-foreground text-center flex items-center justify-center gap-2">
+                <Zap className="w-5 h-5 text-primary" />
+                {autoRepayEnabled ? 'Disable' : 'Enable'} Auto-Repay
+              </DialogTitle>
+            </DialogHeader>
 
-          <div className="space-y-4">
-            {modalAction === 'enable' ? (
-              <>
-                <div className="bg-primary/5 rounded-xl p-4">
-                  <div className="font-inter font-medium text-foreground mb-2">Auto-Repay Benefits:</div>
-                  <ul className="space-y-1 font-inter text-sm text-muted-foreground">
-                    <li>• Reduces interest accumulation</li>
-                    <li>• Improves loan health factor</li>
-                    <li>• Decreases liquidation risk</li>
-                  </ul>
+            <div className="space-y-4 mt-4">
+              <div className="bg-primary/5 rounded-xl p-4 text-center">
+                <div className="font-plus-jakarta text-sm text-muted-foreground mb-2">
+                  {autoRepayEnabled 
+                    ? 'Auto-repay will be disabled for all loans'
+                    : 'Enable automatic repayment using yield earnings'
+                  }
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-green-50 rounded-xl p-3 text-center">
-                    <div className="font-inter text-sm text-green-700">Available Yield</div>
-                    <div className="font-inter text-lg font-semibold text-green-800">$425.50</div>
-                  </div>
-                  <div className="bg-blue-50 rounded-xl p-3 text-center">
-                    <div className="font-inter text-sm text-blue-700">Monthly Interest</div>
-                    <div className="font-inter text-lg font-semibold text-blue-800">$125.50</div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="bg-orange-50 rounded-xl p-4">
-                <div className="font-inter font-medium text-orange-800 mb-2">Summary:</div>
-                <div className="space-y-1 font-inter text-sm text-orange-700">
-                  <div>Total yield used: $2,150.00</div>
-                  <div>Interest saved: $486.25</div>
-                  <div>Remaining loan balance: $9,874.50</div>
+                <div className="font-antic text-lg font-semibold text-foreground">
+                  Available Yield: $425.50
                 </div>
               </div>
-            )}
-          </div>
+            </div>
 
-          <div className="flex gap-3">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowAutoRepayModal(false)}
-              className="flex-1 font-inter font-medium"
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={confirmAutoRepayChange}
-              className="flex-1 btn-gradient text-white font-inter font-medium"
-            >
-              {modalAction === 'enable' ? 'Enable' : 'Disable'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+            <div className="flex gap-3 mt-6">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowAutoRepayModal(false)}
+                className="flex-1 font-plus-jakarta text-sm"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={confirmAutoRepayChange}
+                className="flex-1 bg-primary hover:bg-primary/90 text-white font-plus-jakarta text-sm"
+              >
+                {autoRepayEnabled ? 'Disable' : 'Enable'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </>
   );
 };
 

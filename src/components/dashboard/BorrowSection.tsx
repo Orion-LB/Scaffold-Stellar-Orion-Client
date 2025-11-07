@@ -1,364 +1,317 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
-import { AlertTriangle, TrendingUp, Shield, DollarSign, RefreshCw, Zap, Info } from "lucide-react";
-import cloudImage from "@/assets/cloud.png";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowRight, Wallet, RefreshCw, Plus } from "lucide-react";
+import HeroBackground from "@/components/HeroBackground";
+import { toast } from "sonner";
 
 const BorrowSection = () => {
   const [selectedAsset, setSelectedAsset] = useState("USDC");
   const [borrowAmount, setBorrowAmount] = useState("");
-  const [selectedCollateral, setSelectedCollateral] = useState<string[]>(["OrionAlexRWA"]);
-  const [collateralAmounts, setCollateralAmounts] = useState<Record<string, string>>({});
-  const [showAutoRepayModal, setShowAutoRepayModal] = useState(false);
-  const [autoRepayEnabled, setAutoRepayEnabled] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [selectedCollaterals, setSelectedCollaterals] = useState<{[key: string]: {percentage: string, amount: string}}>({});
+  const [showCollateralModal, setShowCollateralModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Mock data
   const borrowAssets = [
-    { id: "USDC", name: "USD Coin", symbol: "USDC", rate: "5.2%", available: "50,000" },
-    { id: "XLM", name: "Stellar Lumens", symbol: "XLM", rate: "4.8%", available: "100,000" }
+    { id: "USDC", name: "USD Coin", emoji: "💵", rate: "5.2%" },
+    { id: "XLM", name: "Stellar Lumens", emoji: "⭐", rate: "4.8%" }
   ];
 
   const collateralAssets = [
-    { id: "OrionAlexRWA", name: "Orion Alex RWA", balance: "850.50", value: "$42,525", ltv: "80%" },
-    { id: "OrionEthRWA", name: "Orion Eth RWA", balance: "120.25", value: "$6,012", ltv: "75%" },
+    { id: "OrionAlexRWA", name: "OrionAlexRWA", emoji: "🏦", balance: "850.50" },
+    { id: "OrionEthRWA", name: "OrionEthRWA", emoji: "⚡", balance: "120.25" },
+    { id: "OrionBtcRWA", name: "OrionBtcRWA", emoji: "₿", balance: "45.75" }
   ];
 
-  const calculateHealthFactor = () => {
-    const totalCollateralValue = Object.values(collateralAmounts).reduce((sum, amount) => sum + parseFloat(amount || "0"), 0) * 50; // Mock price
-    const borrowValue = parseFloat(borrowAmount || "0");
-    if (borrowValue === 0) return 999;
-    return (totalCollateralValue * 0.8) / borrowValue; // 80% LTV
+  const userBalances = {
+    USDC: "0.00",
+    XLM: "0.00"
   };
 
-  const calculateLTV = () => {
-    const totalCollateralValue = Object.values(collateralAmounts).reduce((sum, amount) => sum + parseFloat(amount || "0"), 0) * 50;
-    const borrowValue = parseFloat(borrowAmount || "0");
-    if (totalCollateralValue === 0) return 0;
-    return (borrowValue / totalCollateralValue) * 100;
-  };
-
-  const getHealthFactorColor = (hf: number) => {
-    if (hf >= 2) return "text-green-600";
-    if (hf >= 1.5) return "text-yellow-600";
-    if (hf >= 1.1) return "text-orange-600";
-    return "text-red-600";
-  };
-
-  const handleBorrow = () => {
-    setShowAutoRepayModal(true);
-  };
-
-  const handleConfirmBorrow = async () => {
+  const handleGetMockAssets = async () => {
     setLoading(true);
-    // Mock borrowing logic
     setTimeout(() => {
       setLoading(false);
-      setShowAutoRepayModal(false);
+      toast.success("Mock assets added to your wallet!");
+    }, 1500);
+  };
+
+  const handleBorrow = async () => {
+    if (Object.keys(selectedCollaterals).length === 0) {
+      toast.error("Please select collateral first!");
+      return;
+    }
+    
+    const totalPercentage = getTotalCollateralPercentage();
+    if (totalPercentage !== 100) {
+      toast.error(`Total collateral must be 100%. Currently: ${totalPercentage}%`);
+      return;
+    }
+    
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
       setBorrowAmount("");
-      setCollateralAmounts({});
+      setSelectedCollaterals({});
+      toast.success("Borrow successful!");
     }, 2000);
   };
 
-  const healthFactor = calculateHealthFactor();
-  const ltv = calculateLTV();
+  const handleSelectCollateral = (asset: any, percentage: string) => {
+    const amount = (parseFloat(asset.balance) * parseFloat(percentage) / 100).toFixed(2);
+    
+    setSelectedCollaterals(prev => {
+      const newSelected = { ...prev };
+      
+      if (percentage === "0" || !percentage) {
+        delete newSelected[asset.id];
+      } else {
+        newSelected[asset.id] = { percentage, amount };
+      }
+      
+      return newSelected;
+    });
+    
+    toast.success(`Selected ${percentage}% of ${asset.name}`);
+  };
+  
+  const getTotalCollateralPercentage = () => {
+    return Object.values(selectedCollaterals).reduce((total, collateral) => {
+      return total + parseFloat(collateral.percentage);
+    }, 0);
+  };
+  
+  const getCollateralPercentage = (assetId: string) => {
+    return selectedCollaterals[assetId]?.percentage || "0";
+  };
+
+  const selectedAssetData = borrowAssets.find(a => a.id === selectedAsset) || borrowAssets[0];
+  const totalCollateralPercentage = getTotalCollateralPercentage();
+  const hasSelectedCollaterals = Object.keys(selectedCollaterals).length > 0;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="font-antic text-3xl md:text-4xl font-semibold text-foreground mb-3">
-          Borrow Assets
-        </h1>
-        <p className="font-inter text-lg text-muted-foreground max-w-2xl mx-auto">
-          Use your staked RWA tokens as collateral to borrow digital assets
-        </p>
-      </div>
+    <>
+      <div className="flex items-center justify-center h-full bg-[#antic] relative">
+        <div className="w-full max-w-md bg-[#antic] relative z-50">
+          
+          {/* Get Mock Assets Button */}
+          <div className="flex justify-end mb-4 relative z-50">
+            <Button
+                onClick={() => setShowCollateralModal(true)}
+              className="bg-black/75 text-white hover:bg-gray-600 font-antic font-semibold px-4 py-2 text-sm rounded-[10px] tracking-wide relative z-50"
+            >                <Plus className="w-4 h-4 text-white-600" />
 
-      {/* Borrow Card */}
-      <div className="max-w-4xl mx-auto">
-        <div 
-          className="bg-[#d8dfe5] rounded-[20px] p-8 md:p-12 card-shadow relative overflow-hidden"
-          style={{ 
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-          }}
-        >
-          {/* Subtle cloud background */}
-          <div className="absolute inset-0 pointer-events-none opacity-10">
-            <img 
-              src={cloudImage} 
-              alt=""
-              className="absolute top-1/2 right-0 transform -translate-y-1/2 translate-x-1/4 w-[600px] max-w-none mix-blend-soft-light"
-            />
+                  {hasSelectedCollaterals ? "Manage Collateral" : "Select Collateral"}
+            </Button>
           </div>
 
-          <div className="relative z-10 grid lg:grid-cols-2 gap-8">
-            {/* Left Column - Borrow Details */}
-            <div className="space-y-6">
-              <h3 className="font-antic text-xl font-semibold text-[#0e1c29]">
-                Borrow Details
-              </h3>
-
-              {/* Asset Selection */}
-              <div className="space-y-3">
-                <label className="font-inter font-medium text-[#0e1c29] text-sm">
-                  Asset to Borrow
-                </label>
-                <Select value={selectedAsset} onValueChange={setSelectedAsset}>
-                  <SelectTrigger className="w-full bg-white/80 backdrop-blur-sm border-white/50 rounded-[12px] h-14 font-inter">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white/95 backdrop-blur-md border-white/50">
-                    {borrowAssets.map((asset) => (
-                      <SelectItem key={asset.id} value={asset.id} className="font-inter">
-                        <div className="flex items-center justify-between w-full">
-                          <div>
-                            <div className="font-medium">{asset.name} ({asset.symbol})</div>
-                            <div className="text-sm text-muted-foreground">Rate: {asset.rate} • Available: {asset.available}</div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Borrow Amount */}
-              <div className="space-y-3">
-                <label className="font-inter font-medium text-[#0e1c29] text-sm">
-                  Borrow Amount
-                </label>
-                <div className="relative">
-                  <Input
+          {/* Minimal Borrow Modal */}
+          <div className="bg-[#d8dfe5] rounded-[24px] p-4 border border-gray-200 relative z-50">
+            {/* Upper Section - Borrow Input */}
+            <div className="bg-gray-50 rounded-[20px] p-4 h-[150px] flex flex-col justify-between gap-2">
+              {/* Amount Input Area */}
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <input
                     value={borrowAmount}
                     onChange={(e) => setBorrowAmount(e.target.value)}
                     placeholder="0.00"
-                    className="w-full bg-white/80 backdrop-blur-sm border-white/50 rounded-[12px] h-14 font-inter text-lg pr-24"
+                    className="bg-transparent text-black text-3xl font-antic font-bold outline-none w-full tracking-tight"
                     type="number"
                   />
-                  <Button
-                    onClick={() => setBorrowAmount("10000")} // Mock max safe amount
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-primary/10 text-primary hover:bg-primary/20 border-0 text-sm font-medium px-3 py-1 h-8"
-                    variant="outline"
-                  >
-                    MAX SAFE
-                  </Button>
+                  <div className="text-gray-500 text-sm mt-1 font-antic font-light">$0</div>
                 </div>
-                <div className="text-sm text-muted-foreground font-inter">
-                  ≈ ${parseFloat(borrowAmount || "0").toLocaleString()} USD
+                
+                <div className="flex flex-col items-end">
+                  {/* Asset Selector */}
+                  <Select value={selectedAsset} onValueChange={setSelectedAsset}>
+                    <SelectTrigger className="bg-white border border-gray-200 text-black rounded-[16px] h-12 w-40 font-inter hover:border-gray-300 relative z-50">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{selectedAssetData.emoji}</span>
+                        <span className="font-antic font-semibold text-sm">{selectedAssetData.name}</span>
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border border-gray-200 relative z-[100]">
+                      {borrowAssets.map((asset) => (
+                        <SelectItem key={asset.id} value={asset.id} className="hover:bg-gray-50">
+                          <div className="flex items-center gap-2 w-full">
+                            <span className="text-lg">{asset.emoji}</span>
+                            <div>
+                              <div className="font-antic font-semibold text-sm">{asset.name}</div>
+                              <div className="text-xs text-gray-500 font-antic font-light">APR: {asset.rate}</div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-
-              {/* Interest Rate Display */}
-              <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-inter text-sm text-muted-foreground mb-1">
-                      Interest Rate
-                    </div>
-                    <div className="font-inter text-xl font-semibold text-foreground">
-                      5.2% APR
-                    </div>
-                  </div>
-                  <TrendingUp className="w-6 h-6 text-primary" />
-                </div>
+              
+              {/* Balance Display */}
+              <div className="flex items-center justify-end gap-2 text-gray-500 text-sm">
+                <Wallet className="w-4 h-4" />
+                <span className="font-antic font-medium">Balance: {userBalances[selectedAsset as keyof typeof userBalances]} {selectedAsset}</span>
               </div>
             </div>
 
-            {/* Right Column - Collateral & Health */}
-            <div className="space-y-6">
-              <h3 className="font-antic text-xl font-semibold text-[#0e1c29]">
-                Collateral & Health
-              </h3>
+            {/* Collateral Selection Button */}
+            
 
-              {/* Collateral Selection */}
-              <div className="space-y-4">
-                <label className="font-inter font-medium text-[#0e1c29] text-sm">
-                  Collateral Assets
-                </label>
-                {collateralAssets.map((asset) => (
-                  <div key={asset.id} className="bg-white/60 backdrop-blur-sm rounded-2xl p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          checked={selectedCollateral.includes(asset.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedCollateral([...selectedCollateral, asset.id]);
-                            } else {
-                              setSelectedCollateral(selectedCollateral.filter(id => id !== asset.id));
-                              const newAmounts = { ...collateralAmounts };
-                              delete newAmounts[asset.id];
-                              setCollateralAmounts(newAmounts);
-                            }
-                          }}
-                        />
-                        <div>
-                          <div className="font-inter font-medium text-foreground">{asset.name}</div>
-                          <div className="font-inter text-sm text-muted-foreground">
-                            Balance: {asset.balance} • Value: {asset.value} • LTV: {asset.ltv}
+            {/* Lower Section - Collateral Display */}
+            <div className="bg-gray-50 rounded-[20px] p-4 h-[150px] flex flex-col justify-between gap-2 mt-4">
+              {hasSelectedCollaterals ? (
+                <>
+                  {/* Selected Collaterals Display */}
+                  <div className="flex flex-col gap-2 overflow-y-auto max-h-[100px]">
+                    {Object.entries(selectedCollaterals).map(([assetId, collateral]) => {
+                      const asset = collateralAssets.find(a => a.id === assetId);
+                      return (
+                        <div key={assetId} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">{asset?.emoji}</span>
+                            <div>
+                              <div className="font-antic font-semibold text-sm">{asset?.name}</div>
+                              <div className="text-xs text-gray-500">{collateral.amount} tokens</div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-antic font-bold text-sm">{collateral.percentage}%</div>
                           </div>
                         </div>
-                      </div>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Total Percentage Display */}
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                    <span className="font-antic font-medium text-sm text-gray-600">Total Collateral:</span>
+                    <div className={`font-antic font-bold text-lg ${
+                      totalCollateralPercentage === 100 
+                        ? 'text-green-600' 
+                        : totalCollateralPercentage > 100 
+                        ? 'text-red-600' 
+                        : 'text-orange-600'
+                    }`}>
+                      {totalCollateralPercentage}%
+                      {totalCollateralPercentage === 100 && <span className="ml-1 text-green-600">✓</span>}
                     </div>
-                    {selectedCollateral.includes(asset.id) && (
-                      <Input
-                        value={collateralAmounts[asset.id] || ""}
-                        onChange={(e) => setCollateralAmounts({
-                          ...collateralAmounts,
-                          [asset.id]: e.target.value
-                        })}
-                        placeholder="Amount to use as collateral"
-                        className="bg-white/80 backdrop-blur-sm border-white/50 rounded-[8px] h-10 font-inter"
-                        type="number"
-                      />
-                    )}
                   </div>
-                ))}
-              </div>
-
-              {/* Health Metrics */}
-              <div className="space-y-4">
-                <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-inter font-medium text-[#0e1c29]">LTV Ratio</span>
-                    <span className="font-inter font-semibold text-foreground">{ltv.toFixed(1)}%</span>
+                </>
+              ) : (
+                /* No Collateral Selected */
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="text-gray-400 text-lg font-antic font-light mb-2">No Collateral Selected</div>
+                    <div className="text-gray-500 text-sm font-antic font-light">Click above to select collateral</div>
                   </div>
-                  <Progress value={ltv} className="h-2" />
-                  <div className="text-xs text-muted-foreground mt-1">Max: 80%</div>
                 </div>
-
-                <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-inter font-medium text-[#0e1c29]">Health Factor</span>
-                    <span className={`font-inter font-semibold ${getHealthFactorColor(healthFactor)}`}>
-                      {healthFactor > 999 ? "∞" : healthFactor.toFixed(2)}
-                    </span>
-                  </div>
-                  {healthFactor < 1.2 && healthFactor !== 999 && (
-                    <div className="flex items-center gap-2 text-orange-600 text-sm">
-                      <AlertTriangle className="w-4 h-4" />
-                      <span>Low health factor - risk of liquidation</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+              )}
             </div>
-          </div>
 
-          {/* Borrow Button */}
-          <div className="mt-8">
-            <Button
-              onClick={handleBorrow}
-              disabled={!borrowAmount || Object.keys(collateralAmounts).length === 0}
-              className="w-full btn-gradient text-white font-inter font-medium py-6 text-lg rounded-[12px] flex items-center justify-center gap-3"
-            >
-              <DollarSign className="w-5 h-5" />
-              Borrow {selectedAsset}
-            </Button>
+            {/* Borrow Button */}
+            <div className="mt-4">
+              <Button
+                onClick={handleBorrow}
+                disabled={!borrowAmount || !hasSelectedCollaterals || totalCollateralPercentage !== 100 || loading}
+                className="w-full bg-primary hover:bg-primary/90 text-white font-antic font-bold py-4 text-lg rounded-[20px] flex items-center justify-center gap-3 tracking-wide"
+              >
+                {loading ? (
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    Borrow Assets
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Auto-Repay Modal */}
-      <Dialog open={showAutoRepayModal} onOpenChange={setShowAutoRepayModal}>
-        <DialogContent className="max-w-2xl bg-white/95 backdrop-blur-md border-white/50">
+      {/* Collateral Selection Modal */}
+      <Dialog open={showCollateralModal} onOpenChange={setShowCollateralModal}>
+        <DialogContent className="max-w-md bg-white rounded-2xl border border-gray-200  z-[100]">
           <DialogHeader>
-            <DialogTitle className="font-antic text-2xl font-semibold text-foreground flex items-center gap-3">
-              <Zap className="w-6 h-6 text-primary" />
-              Enable Auto-Repay?
+            <DialogTitle className="font-antic text-xl font-semibold text-foreground text-center">
+              Select Collateral
             </DialogTitle>
-            <DialogDescription className="font-inter text-muted-foreground">
-              Let your staked yield automatically repay your loan interest
-            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6">
-            {/* Explanation */}
-            <div className="bg-primary/5 rounded-2xl p-6">
-              <h4 className="font-inter font-semibold text-foreground mb-3 flex items-center gap-2">
-                <Info className="w-5 h-5 text-primary" />
-                How Auto-Repay Works
-              </h4>
-              <ul className="space-y-2 font-inter text-sm text-muted-foreground">
-                <li>• Your staked RWA assets earn yield continuously</li>
-                <li>• Earned yield automatically pays your loan interest</li>
-                <li>• Reduces your interest burden and liquidation risk</li>
-                <li>• You can disable this feature at any time</li>
-              </ul>
-            </div>
-
-            {/* Visual Calculation */}
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="bg-green-50 rounded-2xl p-4">
-                <div className="font-inter text-sm text-green-700 mb-1">Estimated Monthly Yield</div>
-                <div className="font-inter text-xl font-semibold text-green-800">$425.50</div>
-              </div>
-              <div className="bg-blue-50 rounded-2xl p-4">
-                <div className="font-inter text-sm text-blue-700 mb-1">Monthly Interest</div>
-                <div className="font-inter text-xl font-semibold text-blue-800">$210.25</div>
+          <div className="space-y-4 mt-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
+              <div className="text-center">
+                <div className="font-antic font-semibold text-sm text-blue-700">
+                  Total Selected: {totalCollateralPercentage}% / 100%
+                </div>
+                <div className="font-antic font-light text-xs text-blue-600 mt-1">
+                  {totalCollateralPercentage < 100 
+                    ? `Need ${100 - totalCollateralPercentage}% more to borrow`
+                    : totalCollateralPercentage === 100
+                    ? "Perfect! Ready to borrow"
+                    : "Too much! Reduce selection"}
+                </div>
               </div>
             </div>
-
-            {/* Auto-Repay Toggle */}
-            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-2xl">
-              <div>
-                <div className="font-inter font-medium text-foreground">Enable Auto-Repay</div>
-                <div className="font-inter text-sm text-muted-foreground">Automatically use yield to repay interest</div>
-              </div>
-              <Switch
-                checked={autoRepayEnabled}
-                onCheckedChange={setAutoRepayEnabled}
-                className="data-[state=checked]:bg-primary"
-              />
-            </div>
-
-            {/* Terms */}
-            <div className="flex items-start gap-3">
-              <Checkbox
-                checked={termsAccepted}
-                onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
-              />
-              <div className="font-inter text-sm text-muted-foreground">
-                I understand the auto-repay mechanism and agree to the terms and conditions
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-4">
-              <Button
-                onClick={() => {
-                  setAutoRepayEnabled(false);
-                  handleConfirmBorrow();
-                }}
-                disabled={!termsAccepted || loading}
-                variant="outline"
-                className="flex-1 py-3 font-inter font-medium border-2"
-              >
-                Skip for Now
-              </Button>
-              <Button
-                onClick={handleConfirmBorrow}
-                disabled={!termsAccepted || loading}
-                className="flex-1 btn-gradient text-white py-3 font-inter font-medium"
-              >
-                {loading ? (
-                  <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-                ) : null}
-                {autoRepayEnabled ? "Enable & Borrow" : "Borrow"}
-              </Button>
-            </div>
+            
+            {collateralAssets.map((asset) => {
+              const currentPercentage = getCollateralPercentage(asset.id);
+              return (
+                <div key={asset.id} className={`border rounded-xl p-4 transition-colors ${
+                  currentPercentage !== "0" ? 'border-primary bg-primary/5' : 'border-gray-200'
+                }`}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className="text-2xl">{asset.emoji}</span>
+                    <div className="flex-1">
+                      <div className="font-antic font-semibold text-lg">{asset.name}</div>
+                      <div className="font-antic font-light text-sm text-gray-500">
+                        Available: {asset.balance}
+                      </div>
+                    </div>
+                    {currentPercentage !== "0" && (
+                      <div className="bg-primary text-white px-2 py-1 rounded-full">
+                        <span className="font-antic font-bold text-xs">{currentPercentage}%</span>
+                      </div>
+                    )}
+                  </div>
+                
+                <div className="grid grid-cols-5 gap-2">
+                  {["0", "25", "50", "75", "100"].map((percentage) => {
+                    const currentPercentage = getCollateralPercentage(asset.id);
+                    const isSelected = currentPercentage === percentage;
+                    const wouldExceed = totalCollateralPercentage - parseFloat(currentPercentage) + parseFloat(percentage) > 100;
+                    
+                    return (
+                      <Button
+                        key={percentage}
+                        onClick={() => handleSelectCollateral(asset, percentage)}
+                        disabled={wouldExceed && !isSelected}
+                        className={`font-antic font-semibold text-sm py-2 rounded-lg transition-colors ${
+                          isSelected
+                            ? 'bg-primary text-white'
+                            : wouldExceed
+                            ? 'bg-red-50 text-red-300 cursor-not-allowed'
+                            : percentage === "0"
+                            ? 'bg-gray-200 hover:bg-gray-300 text-gray-600'
+                            : 'bg-gray-100 hover:bg-primary hover:text-white text-gray-700'
+                        }`}
+                        variant="ghost"
+                      >
+                        {percentage}%
+                      </Button>
+                    );
+                  })}
+                </div>
+                </div>
+              );
+            })}
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
 
