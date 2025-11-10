@@ -385,21 +385,22 @@ const StakeSection = () => {
   );
 
   return (
-<div className="h-full relative overflow-hidden">
-      <div className="w-full min-h-full mx-auto px-4 py-3  flex-col">
+      <div className="w-full h-full mx-auto px-4 py-4 flex flex-col">
         {/* Main Title Section - Compact */}
-        <div className="text-center mb-3">
+        <div className="text-center mb-4">
           <h1 className="text-2xl font-bold text-gray-900 mb-1 font-antic">
-            Stake RWA Tokens 
+            Stake RWA Tokens
           </h1>
           <p className="text-xs text-gray-600 font-antic">
             Stake your RWA tokens and grow with Orion
           </p>
         </div>
- <div className="w-full h-[1000vh] px-10 py-3">
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3 p-1">
+
+        {/* Main Content Container - Flex grow to fill space */}
+        <div className="w-full flex-1 px-10 py-4 flex flex-col gap-4">
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           {/* Card 1: Total RWA Value Locked */}
-          <div className="bg-white rounded-lg shadow-md p-3 border border-gray-100 hover:shadow-lg transition-shadow">
+          <div className="bg-white rounded-lg shadow-md p-4 border border-gray-100 hover:shadow-lg transition-shadow">
             <div className="flex items-center gap-1 text-gray-500 text-[10px] mb-0.5">
               <Info className="w-3 h-3" />
               <span className="font-antic uppercase tracking-wide">TVL Targeted</span>
@@ -447,9 +448,9 @@ const StakeSection = () => {
         </div>
 
         {/* Row 2: Main Action Cards - Flexible */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-2.5 mb-2  ">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-4">
           {/* Left Card: Earn Rewards Info */}
-          <div className="bg-white rounded-lg shadow-md p-5 border border-gray-100 hover:shadow-lg transition-shadow   justify-between flex flex-col">
+          <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow justify-between flex flex-col">
   <div>
     <div className="flex items-center justify-center ">
                    <img src={grow} alt="Orion" className="w-8 h-8" />
@@ -714,75 +715,76 @@ const StakeSection = () => {
           </div>
         </div>
 
-        {/* Row 3: Why Stake Section - Compact */}
-        <div className="bg-white rounded-lg shadow-md p-5 border border-gray-100 hover:shadow-lg transition-shadow">
-          <h2 className="text-sm font-bold text-gray-900 font-antic mb-1.5">Why Stake?</h2>
+        {/* Row 3: Why Stake Section */}
+        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
+          <h2 className="text-base font-bold text-gray-900 font-antic mb-4">Why Stake?</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Feature 1: Real-World Backing */}
-            <div className="flex gap-1.5">
+            <div className="flex gap-2 p-3">
               <div className="flex-shrink-0">
-                <div className="w-6 h-6 bg-primary/10 rounded-md flex items-center justify-center">
-                  <Shield className="w-3 h-3 text-primary" />
+                <div className="w-8 h-8 bg-primary/10 rounded-md flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-primary" />
                 </div>
               </div>
               <div>
-                <h3 className="text-[10px] font-bold text-gray-900 mb-0.5 font-antic leading-tight">Real-World Backing</h3>
-                <p className="text-[9px] text-gray-600 font-antic leading-tight">
+                <h3 className="text-xs font-bold text-gray-900 mb-1 font-antic leading-tight">Real-World Backing</h3>
+                <p className="text-[10px] text-gray-600 font-antic leading-relaxed">
                   Tokens backed by tangible assets
                 </p>
               </div>
             </div>
 
             {/* Feature 2: No Lockup Period */}
-            <div className="flex gap-1.5">
+            <div className="flex gap-2 p-3">
               <div className="flex-shrink-0">
-                <div className="w-6 h-6 bg-primary/10 rounded-md flex items-center justify-center">
-                  <Lock className="w-3 h-3 text-primary" />
+                <div className="w-8 h-8 bg-primary/10 rounded-md flex items-center justify-center">
+                  <Lock className="w-4 h-4 text-primary" />
                 </div>
               </div>
               <div>
-                <h3 className="text-[10px] font-bold text-gray-900 mb-0.5 font-antic leading-tight">No Lockup Period</h3>
-                <p className="text-[9px] text-gray-600 font-antic leading-tight">
+                <h3 className="text-xs font-bold text-gray-900 mb-1 font-antic leading-tight">No Lockup Period</h3>
+                <p className="text-[10px] text-gray-600 font-antic leading-relaxed">
                   Unstake anytime without penalties
                 </p>
               </div>
             </div>
 
             {/* Feature 3: Participate in Governance */}
-            <div className="flex gap-1.5">
+            <div className="flex gap-2 p-3">
               <div className="flex-shrink-0">
-                <div className="w-6 h-6 bg-primary/10 rounded-md flex items-center justify-center">
-                  <Vote className="w-3 h-3 text-primary" />
+                <div className="w-8 h-8 bg-primary/10 rounded-md flex items-center justify-center">
+                  <Vote className="w-4 h-4 text-primary" />
                 </div>
               </div>
               <div>
-                <h3 className="text-[10px] font-bold text-gray-900 mb-0.5 font-antic leading-tight">Governance Voting</h3>
-                <p className="text-[9px] text-gray-600 font-antic leading-tight">
+                <h3 className="text-xs font-bold text-gray-900 mb-1 font-antic leading-tight">Governance Voting</h3>
+                <p className="text-[10px] text-gray-600 font-antic leading-relaxed">
                   Shape the future through voting
                 </p>
               </div>
             </div>
 
             {/* Feature 4: Future Utility */}
-            <div className="flex gap-1.5">
+            <div className="flex gap-2 p-3">
               <div className="flex-shrink-0">
-                <div className="w-6 h-6 bg-primary/10 rounded-md flex items-center justify-center">
-                  <Zap className="w-3 h-3 text-primary" />
+                <div className="w-8 h-8 bg-primary/10 rounded-md flex items-center justify-center">
+                  <Zap className="w-4 h-4 text-primary" />
                 </div>
               </div>
               <div>
-                <h3 className="text-[10px] font-bold text-gray-900 mb-0.5 font-antic leading-tight">Future Utility</h3>
-                <p className="text-[9px] text-gray-600 font-antic leading-tight">
+                <h3 className="text-xs font-bold text-gray-900 mb-1 font-antic leading-tight">Future Utility</h3>
+                <p className="text-[10px] text-gray-600 font-antic leading-relaxed">
                   Unlock benefits through staking
                 </p>
               </div>
             </div>
           </div>
         </div>
+        </div>
 
         {/* Footer */}
-        <div className="mt-4 flex items-center justify-between text-gray-400 text-[9px] font-antic">
+        <div className="mt-auto pt-4 pb-2 flex items-center justify-between text-gray-400 text-[10px] font-antic">
           <div className="flex-1"></div>
           <div className="flex items-center gap-3">
             <span className="hover:text-gray-600 cursor-pointer transition-colors">Interface</span>
@@ -794,10 +796,7 @@ const StakeSection = () => {
             <span>©Orion 2025</span>
           </div>
         </div>
-      </div></div>
-        {/* Row 1: Top Stat Cards - Compact */}
-
-    </div>
+      </div>
   );
 };
 

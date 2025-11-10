@@ -2,6 +2,13 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   ResponsiveContainer,
   AreaChart,
   Area,
@@ -16,7 +23,8 @@ import {
   DollarSign,
   Wallet,
   Download,
-  AlertTriangle
+  AlertTriangle,
+  FileText
 } from "lucide-react";
 import { useContractServices } from "@/hooks/useContractServices";
 import { toast } from "sonner";
@@ -257,15 +265,15 @@ const ProfileSection = () => {
   }, 0);
 
   return (
-    <div className="h-full overflow-auto bg-[#d8dfe5] rounded-[24px] flex flex-col h-full p-3">
+    <div className="h-full overflow-auto bg-[#d8dfe5] rounded-[24px] flex flex-col m-4 p-4">
       {/* Header */}
-      <div className="border-b border-gray-200 px-10 py-3">
+      <div className="border-b border-gray-200 px-6 py-2">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="font-plus-jakarta text-xl font-semibold text-gray-900">
+            <h1 className="font-antic text-lg font-semibold text-gray-900">
               Portfolio Overview
             </h1>
-            <p className="font-plus-jakarta text-sm text-gray-600 mt-1">
+            <p className="font-plus-jakarta text-xs text-gray-600">
               Your financial snapshot at a glance
             </p>
           </div>
@@ -278,173 +286,114 @@ const ProfileSection = () => {
         </div>
       </div>
 
-      {/* Main Content - 2 Column Layout */}
-      <div className="grid grid-cols-[60%_40%] gap-6 px-6 py-6">
+      {/* Main Content - Compact Single Column Layout */}
+      <div className="px-4 py-3 space-y-3 flex-1 overflow-auto">
 
-        {/* LEFT COLUMN */}
-        <div className="space-y-6">
-
-          {/* Portfolio Performance - Top Card */}
-          <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm">
-            {/* Header with Total Value on Right */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-plus-jakarta text-lg font-semibold text-gray-900">Portfolio Performance</h3>
-                  <p className="text-xs text-gray-600">30-day trend</p>
-                </div>
-              </div>
-
-              {/* Total Portfolio Value - Top Right */}
-              <div className="text-right">
-                <div className="text-xs text-gray-600 font-plus-jakarta mb-1">Total Value</div>
-                <div className="font-antic text-3xl font-bold text-gray-900">
-                  {formatUSD(totalValue)}
-                </div>
-                <div className="flex items-center justify-end gap-1 text-green-600 mt-1">
-                  <TrendingUp className="w-3 h-3" />
-                  <span className="font-plus-jakarta text-xs">+2.5% this month</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Area Chart */}
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={performanceData}>
-                  <defs>
-                    <linearGradient id="performanceGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#774be5" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#774be5" stopOpacity={0.05}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fontSize: 12, fill: '#6b7280' }}
-                    stroke="#e5e7eb"
-                  />
-                  <YAxis
-                    tick={{ fontSize: 12, fill: '#6b7280' }}
-                    stroke="#e5e7eb"
-                    tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
-                  />
-                  <Tooltip
-                    formatter={(value: number) => formatUSD(value)}
-                    contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="value"
-                    stroke="#774be5"
-                    strokeWidth={3}
-                    fill="url(#performanceGradient)"
-                    dot={{ fill: '#774be5', strokeWidth: 2, r: 5, stroke: 'white' }}
-                    activeDot={{ r: 7 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Portfolio Distribution Legend */}
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <div className="grid grid-cols-3 gap-4">
-                {portfolioData.map((entry) => (
-                  <div key={entry.name} className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }}></div>
-                    <div>
-                      <div className="text-xs font-plus-jakarta text-gray-600">{entry.name}</div>
-                      <div className="text-sm font-plus-jakarta font-semibold text-gray-900">
-                        {formatUSD(entry.value)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Asset Breakdown Table */}
-          <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm">
-            <h3 className="font-plus-jakarta text-lg font-semibold text-gray-900 mb-4">Asset Breakdown</h3>
-
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
-              {/* Table Header */}
-              <div className="grid grid-cols-[2fr_1fr_1fr] gap-4 px-4 py-3 bg-gray-50 border-b border-gray-200">
-                <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Asset Type</div>
-                <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide text-right">Balance</div>
-                <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide text-right">Value</div>
-              </div>
-
-              {/* Table Body */}
-              <div className="divide-y divide-gray-200">
-                {getAllAssetTypes().map(assetType => {
-                  const config = getAssetConfig(assetType);
-                  const data = assetBalances[assetType];
-                  const stRwaAmount = parseFloat(formatBalance(data.stRwaBalance));
-                  const value = stRwaAmount * data.price;
-
-                  if (stRwaAmount === 0) return null;
-
-                  return (
-                    <div key={assetType} className="grid grid-cols-[2fr_1fr_1fr] gap-4 px-4 py-3 hover:bg-gray-50">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">{config.emoji}</span>
-                        <span className="text-sm font-plus-jakarta text-gray-900">{config.shortName}</span>
-                      </div>
-                      <div className="text-sm font-plus-jakarta text-gray-900 text-right">{stRwaAmount.toFixed(2)}</div>
-                      <div className="text-sm font-plus-jakarta font-semibold text-gray-900 text-right">{formatUSD(value)}</div>
-                    </div>
-                  );
-                })}
-
-                {/* USDC Row */}
-                <div className="grid grid-cols-[2fr_1fr_1fr] gap-4 px-4 py-3 hover:bg-gray-50">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-green-600" />
-                    <span className="text-sm font-plus-jakarta text-gray-900">USDC</span>
-                  </div>
-                  <div className="text-sm font-plus-jakarta text-gray-900 text-right">{formatBalance(usdcBalance, 7)}</div>
-                  <div className="text-sm font-plus-jakarta font-semibold text-gray-900 text-right">{formatUSD(usdcValue)}</div>
-                </div>
-
-                {/* Total Row */}
-                <div className="grid grid-cols-[2fr_1fr_1fr] gap-4 px-4 py-3 bg-gray-50 font-semibold">
-                  <div className="text-sm font-plus-jakarta text-gray-900">Total</div>
-                  <div></div>
-                  <div className="text-sm font-plus-jakarta text-gray-900 text-right">{formatUSD(totalValue)}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        {/* RIGHT COLUMN */}
-        <div className="space-y-6 px-4">
-
-          {/* Risk Dashboard */}
-          <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Shield className="w-5 h-5 text-blue-600" />
+        {/* Portfolio Performance Graph - Compact */}
+        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+          {/* Header with Total Value */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-primary" />
               </div>
               <div>
-                <h3 className="font-plus-jakarta text-lg font-semibold text-gray-900">Risk & Loans</h3>
+                <h3 className="font-plus-jakarta text-sm font-semibold text-gray-900">Portfolio Performance</h3>
+                <p className="text-xs text-gray-600">30-day trend</p>
+              </div>
+            </div>
+
+            {/* Total Portfolio Value - Top Right */}
+            <div className="text-right">
+              <div className="text-xs text-gray-600 font-plus-jakarta">Total Value</div>
+              <div className="font-antic text-2xl font-bold text-gray-900">
+                {formatUSD(totalValue)}
+              </div>
+              <div className="flex items-center justify-end gap-1 text-green-600">
+                <TrendingUp className="w-3 h-3" />
+                <span className="font-plus-jakarta text-xs">+2.5% this month</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Area Chart - Reduced Height */}
+          <div className="h-40">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={performanceData}>
+                <defs>
+                  <linearGradient id="performanceGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#774be5" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#774be5" stopOpacity={0.05}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 12, fill: '#6b7280' }}
+                  stroke="#e5e7eb"
+                />
+                <YAxis
+                  tick={{ fontSize: 12, fill: '#6b7280' }}
+                  stroke="#e5e7eb"
+                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                />
+                <Tooltip
+                  formatter={(value: number) => formatUSD(value)}
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#774be5"
+                  strokeWidth={3}
+                  fill="url(#performanceGradient)"
+                  dot={{ fill: '#774be5', strokeWidth: 2, r: 5, stroke: 'white' }}
+                  activeDot={{ r: 7 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Portfolio Distribution Legend - Compact */}
+          <div className="mt-3 pt-3 border-t border-gray-200">
+            <div className="grid grid-cols-3 gap-3">
+              {portfolioData.map((entry) => (
+                <div key={entry.name} className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></div>
+                  <div>
+                    <div className="text-xs font-plus-jakarta text-gray-600">{entry.name}</div>
+                    <div className="text-xs font-plus-jakarta font-semibold text-gray-900">
+                      {formatUSD(entry.value)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Three Cards in a Row - Risk & Loans, Yield Earnings, Quick Actions - Compact */}
+        <div className="grid grid-cols-3 gap-3">
+
+          {/* Card 1: Risk & Loans */}
+          <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Shield className="w-4 h-4 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-plus-jakarta text-sm font-semibold text-gray-900">Risk & Loans</h3>
                 <p className="text-xs text-gray-600">Health status</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className={`text-center p-4 rounded-lg border-2 ${
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <div className={`text-center p-2 rounded-lg border-2 ${
                 healthFactor === 0
                   ? 'border-gray-200 bg-gray-50'
                   : healthFactor >= 1.5
@@ -453,7 +402,7 @@ const ProfileSection = () => {
                   ? 'border-yellow-200 bg-yellow-50'
                   : 'border-red-200 bg-red-50'
               }`}>
-                <div className={`font-antic text-3xl font-bold mb-1 ${
+                <div className={`font-antic text-xl font-bold ${
                   healthFactor === 0
                     ? 'text-gray-600'
                     : healthFactor >= 1.5
@@ -467,10 +416,10 @@ const ProfileSection = () => {
                 <div className="text-xs text-gray-700 font-plus-jakarta">Health Factor</div>
               </div>
 
-              <div className={`text-center p-4 rounded-lg border-2 ${
+              <div className={`text-center p-2 rounded-lg border-2 ${
                 totalDebt === 0 ? 'border-gray-200 bg-gray-50' : 'border-orange-200 bg-orange-50'
               }`}>
-                <div className="font-antic text-3xl font-bold text-gray-900 mb-1">
+                <div className="font-antic text-xl font-bold text-gray-900">
                   {totalDebt === 0 ? 'None' : formatUSD(totalDebt)}
                 </div>
                 <div className="text-xs text-gray-700 font-plus-jakarta">Total Debt</div>
@@ -506,26 +455,26 @@ const ProfileSection = () => {
           </div>
 
           {/* Yield Earnings */}
-          <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-green-600" />
+          <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-4 h-4 text-green-600" />
               </div>
               <div>
-                <h3 className="font-plus-jakarta text-lg font-semibold text-gray-900">Yield Earnings</h3>
+                <h3 className="font-plus-jakarta text-sm font-semibold text-gray-900">Yield Earnings</h3>
                 <p className="text-xs text-gray-600">Available to claim</p>
               </div>
             </div>
 
-            <div className="mb-6">
-              <div className="font-antic text-3xl font-bold text-gray-900 mb-1">
+            <div className="mb-3">
+              <div className="font-antic text-xl font-bold text-gray-900">
                 {formatUSD(totalYield)}
               </div>
-              <div className="text-sm text-gray-600">Total Available</div>
+              <div className="text-xs text-gray-600">Total Available</div>
             </div>
 
             {/* Vault-specific yields */}
-            <div className="space-y-3 mb-4">
+            <div className="space-y-2 mb-3 max-h-32 overflow-y-auto">
               {getAllAssetTypes().map(assetType => {
                 const config = getAssetConfig(assetType);
                 const data = assetBalances[assetType];
@@ -581,13 +530,13 @@ const ProfileSection = () => {
           </div>
 
           {/* Quick Actions */}
-          <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm">
-            <h3 className="font-plus-jakarta text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm">
+            <h3 className="font-plus-jakarta text-sm font-semibold text-gray-900 mb-3">Quick Actions</h3>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
                 <div>
-                  <div className="text-sm font-plus-jakarta font-medium text-gray-900">Auto-Repay</div>
+                  <div className="text-xs font-plus-jakarta font-medium text-gray-900">Auto-Repay</div>
                   <div className="text-xs text-gray-600">Use yield to auto-pay loans</div>
                 </div>
                 <Switch
@@ -597,9 +546,9 @@ const ProfileSection = () => {
                 />
               </div>
 
-              <button className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+              <button className="w-full flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                 <div>
-                  <div className="text-sm font-plus-jakarta font-medium text-gray-900">Export Portfolio</div>
+                  <div className="text-xs font-plus-jakarta font-medium text-gray-900">Export Portfolio</div>
                   <div className="text-xs text-gray-600">Download CSV or PDF</div>
                 </div>
                 <Download className="w-4 h-4 text-gray-600" />
@@ -607,6 +556,72 @@ const ProfileSection = () => {
             </div>
           </div>
 
+        </div>
+
+        {/* Asset Breakdown - Open Modal Button */}
+        <div className="flex justify-center">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="bg-white hover:bg-gray-50 border-gray-300">
+                <FileText className="w-4 h-4 mr-2" />
+                View Asset Breakdown
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle className="font-plus-jakarta text-xl font-semibold">Asset Breakdown</DialogTitle>
+              </DialogHeader>
+
+              <div className="border border-gray-200 rounded-lg overflow-hidden mt-4">
+                {/* Table Header */}
+                <div className="grid grid-cols-[2fr_1fr_1fr] gap-4 px-4 py-3 bg-gray-50 border-b border-gray-200">
+                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Asset Type</div>
+                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide text-right">Balance</div>
+                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide text-right">Value</div>
+                </div>
+
+                {/* Table Body */}
+                <div className="divide-y divide-gray-200">
+                  {getAllAssetTypes().map(assetType => {
+                    const config = getAssetConfig(assetType);
+                    const data = assetBalances[assetType];
+                    const stRwaAmount = parseFloat(formatBalance(data.stRwaBalance));
+                    const value = stRwaAmount * data.price;
+
+                    if (stRwaAmount === 0) return null;
+
+                    return (
+                      <div key={assetType} className="grid grid-cols-[2fr_1fr_1fr] gap-4 px-4 py-3 hover:bg-gray-50">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">{config.emoji}</span>
+                          <span className="text-sm font-plus-jakarta text-gray-900">{config.shortName}</span>
+                        </div>
+                        <div className="text-sm font-plus-jakarta text-gray-900 text-right">{stRwaAmount.toFixed(2)}</div>
+                        <div className="text-sm font-plus-jakarta font-semibold text-gray-900 text-right">{formatUSD(value)}</div>
+                      </div>
+                    );
+                  })}
+
+                  {/* USDC Row */}
+                  <div className="grid grid-cols-[2fr_1fr_1fr] gap-4 px-4 py-3 hover:bg-gray-50">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-5 h-5 text-green-600" />
+                      <span className="text-sm font-plus-jakarta text-gray-900">USDC</span>
+                    </div>
+                    <div className="text-sm font-plus-jakarta text-gray-900 text-right">{formatBalance(usdcBalance, 7)}</div>
+                    <div className="text-sm font-plus-jakarta font-semibold text-gray-900 text-right">{formatUSD(usdcValue)}</div>
+                  </div>
+
+                  {/* Total Row */}
+                  <div className="grid grid-cols-[2fr_1fr_1fr] gap-4 px-4 py-3 bg-gray-50 font-semibold">
+                    <div className="text-sm font-plus-jakarta text-gray-900">Total</div>
+                    <div></div>
+                    <div className="text-sm font-plus-jakarta text-gray-900 text-right">{formatUSD(totalValue)}</div>
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
       </div>

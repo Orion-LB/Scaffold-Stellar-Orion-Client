@@ -2,7 +2,7 @@
 .framer-1fpxu4o {
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 200vh;
+  height: 100vh;
   opacity: 0.75;
   background: radial-gradient(100% 100% at 0% 0%, #d1d1d1 0%, #f6fbff 100%);
   mask-image: radial-gradient(125% 100% at 0 0, #000 0%, #00000039 88.2883%, #0000 100%);

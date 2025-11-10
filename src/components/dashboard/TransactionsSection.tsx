@@ -142,12 +142,12 @@ const TransactionsSection = () => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-[#d8dfe5] rounded-[24px] px-4 py-3">
       {/* Header */}
       <div className="border-b border-gray-200 px-6 py-6">
         <div className="flex items-center gap-3 mb-2">
           <FileText className="w-6 h-6 text-primary" />
-          <h1 className="font-plus-jakarta text-xl font-semibold text-gray-900">
+          <h1 className="font-antic text-xl font-semibold text-gray-900">
             Transaction History
           </h1>
         </div>
