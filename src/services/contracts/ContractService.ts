@@ -211,7 +211,13 @@ export abstract class ContractService {
         // Use i128 for values that represent amounts/prices to avoid u64 overflow
         if (/amount|price/i.test(key)) {
           args.push(nativeToScVal(value.toString(), { type: 'i128' }));
-        } else {
+        } 
+        // Use u32 for expiration_ledger parameters
+        else if (/expiration_ledger/i.test(key)) {
+          args.push(nativeToScVal(Number(value), { type: 'u32' }));
+        }
+        // Default to u64 for other numeric values
+        else {
           args.push(nativeToScVal(value.toString(), { type: 'u64' }));
         }
       } else if (typeof value === 'boolean') {

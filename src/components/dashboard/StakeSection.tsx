@@ -133,6 +133,13 @@ const StakeSection = () => {
 
     setLoading(true);
     try {
+      // Check if user has any RWA balance (if not, they probably haven't minted/whitelisted)
+      if (rwaBalance <= 0) {
+        toast.error("Please mint some RWA tokens first using the 'Get RWA' button");
+        setLoading(false);
+        return;
+      }
+
       // Step 1: Approve RWA tokens for vault
       toast.info(
         <div className="flex items-center gap-2">
@@ -141,7 +148,9 @@ const StakeSection = () => {
         </div>
       );
 
-      // ✅ REAL CONTRACT CALL: approve(owner, spender, amount, expiration)
+      // ✅ REAL CONTRACT CALL: approve(from, spender, amount, expiration_ledger)
+      // Note: User must be whitelisted first. The mint_rwa_tokens() function 
+      // automatically whitelists users, so this should work if they minted.
       const approveResult = await rwaService.approve(
         address,
         assetConfig.vault,
@@ -150,7 +159,7 @@ const StakeSection = () => {
       );
 
       if (!approveResult.success) {
-        throw new Error("Failed to approve tokens");
+        throw new Error("Failed to approve tokens: " + (approveResult.error || "Unknown error"));
       }
 
       // Step 2: Stake RWA tokens
@@ -525,17 +534,7 @@ const StakeSection = () => {
             </div>
             <div className="text-xl font-bold text-gray-900 font-antic">
               {formatBalance(stRwaBalance)} stRWA
-            </div>
-            {claimableYield > 0 && (
-              <Button
-                onClick={handleClaimYield}
-                disabled={loading}
-                className="mt-2 bg-green-600 hover:bg-green-700 text-white text-[9px] px-2 py-1 rounded-md font-antic"
-              >
-                Claim {usdcService.fromContractUnits(claimableYield)} USDC
-              </Button>
-            )}
-          </div>
+            </div>          </div>
         </div>
 
         {/* Row 2: Main Action Cards - Flexible */}

@@ -38,11 +38,18 @@ const BorrowSection = () => {
   const [loading, setLoading] = useState(false);
   const [showCollateralModal, setShowCollateralModal] = useState(false);
 
-  // Multiple collateral support
+  // Multiple collateral support - using actual asset types
   const [collateralPercentages, setCollateralPercentages] = useState<Record<string, number>>({
-    "OrionAlexRWA": 0,
-    "OrionEthRWA": 0,
-    "OrionBtcRWA": 0,
+    [AssetType.INVOICES]: 0,
+    [AssetType.TBILLS]: 0,
+    [AssetType.REALESTATE]: 0,
+  });
+
+  // Real contract balances for each asset type
+  const [assetBalances, setAssetBalances] = useState<Record<AssetType, bigint>>({
+    [AssetType.INVOICES]: BigInt(0),
+    [AssetType.TBILLS]: BigInt(0),
+    [AssetType.REALESTATE]: BigInt(0),
   });
 
   // Real contract balances
@@ -67,13 +74,19 @@ const BorrowSection = () => {
         // Load from localStorage
         const profile = getProfile(address);
         
-        // Get stRWA balance from first selected asset type with tokens
-        let totalStRwa = BigInt(0);
-        for (const assetType of ['invoices', 'tbills', 'realestate'] as AssetType[]) {
-          totalStRwa += profile.assetBalances[assetType].stRwaBalance;
-        }
+        // Load stRWA balances for each asset type
+        const balances: Record<AssetType, bigint> = {
+          [AssetType.INVOICES]: profile.assetBalances[AssetType.INVOICES].stRwaBalance,
+          [AssetType.TBILLS]: profile.assetBalances[AssetType.TBILLS].stRwaBalance,
+          [AssetType.REALESTATE]: profile.assetBalances[AssetType.REALESTATE].stRwaBalance,
+        };
         
+        setAssetBalances(balances);
+        
+        // Calculate total stRWA balance
+        const totalStRwa = Object.values(balances).reduce((sum, bal) => sum + bal, BigInt(0));
         setStRwaBalance(totalStRwa);
+        
         setUsdcBalance(profile.usdcBalance);
         
         // Check if any vault has an active loan
@@ -119,28 +132,34 @@ const BorrowSection = () => {
     return (Number(balance) / Math.pow(10, decimals)).toFixed(2);
   };
 
-  // Collateral assets with their balances (mock multiple vaults)
+  // Collateral assets with their REAL balances from staking
   const collateralAssets = [
     {
-      id: "OrionAlexRWA",
-      name: "Orion Alex RWA",
-      balance: formatBalance(stRwaBalance),
+      id: AssetType.INVOICES,
+      name: "Platform Invoices (stRWA-I)",
+      displayName: getAssetConfig(AssetType.INVOICES).displayName,
+      symbol: getAssetConfig(AssetType.INVOICES).symbol,
+      balance: formatBalance(assetBalances[AssetType.INVOICES]),
       price: Number(stRwaPrice) / 100, // Price in USDC
-      emoji: "🏦"
+      emoji: "📄"
     },
     {
-      id: "OrionEthRWA",
-      name: "Orion Eth RWA",
-      balance: formatBalance(BigInt(0)), // TODO: Load from other vaults when deployed
+      id: AssetType.TBILLS,
+      name: "Platform T-Bills (stRWA-TB)",
+      displayName: getAssetConfig(AssetType.TBILLS).displayName,
+      symbol: getAssetConfig(AssetType.TBILLS).symbol,
+      balance: formatBalance(assetBalances[AssetType.TBILLS]),
       price: Number(stRwaPrice) / 100,
-      emoji: "⚡"
+      emoji: "💵"
     },
     {
-      id: "OrionBtcRWA",
-      name: "Orion Btc RWA",
-      balance: formatBalance(BigInt(0)), // TODO: Load from other vaults when deployed
+      id: AssetType.REALESTATE,
+      name: "Platform Real Estate (stRWA-RE)",
+      displayName: getAssetConfig(AssetType.REALESTATE).displayName,
+      symbol: getAssetConfig(AssetType.REALESTATE).symbol,
+      balance: formatBalance(assetBalances[AssetType.REALESTATE]),
       price: Number(stRwaPrice) / 100,
-      emoji: "₿"
+      emoji: "🏠"
     }
   ];
 
