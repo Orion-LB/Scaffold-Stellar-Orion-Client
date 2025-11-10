@@ -24,7 +24,8 @@ import {
   Wallet,
   Download,
   AlertTriangle,
-  FileText
+  FileText,
+  Vault
 } from "lucide-react";
 import { useContractServices } from "@/hooks/useContractServices";
 import { toast } from "sonner";
@@ -37,22 +38,56 @@ import {
   createVaultServiceFromAddress
 } from "@/services/contracts";
 
+interface VaultLoanInfo {
+  borrowedAmount: number;
+  hasLoan: boolean;
+}
+
 const ProfileSection = () => {
   const [autoRepayEnabled, setAutoRepayEnabled] = useState(true);
 
-  // Multi-asset balances
+  // Auto-repay state per vault
+  const [vaultAutoRepay, setVaultAutoRepay] = useState<Record<AssetType, boolean>>({
+    [AssetType.INVOICES]: false,
+    [AssetType.TBILLS]: false,
+    [AssetType.REALESTATE]: false,
+  });
+
+  // Multi-asset balances with mock data
   const [assetBalances, setAssetBalances] = useState<Record<AssetType, {
     rwaBalance: bigint;
     stRwaBalance: bigint;
     claimableYield: bigint;
     price: number; // USD price
   }>>({
-    [AssetType.INVOICES]: { rwaBalance: 0n, stRwaBalance: 0n, claimableYield: 0n, price: 1.05 },
-    [AssetType.TBILLS]: { rwaBalance: 0n, stRwaBalance: 0n, claimableYield: 0n, price: 1.02 },
-    [AssetType.REALESTATE]: { rwaBalance: 0n, stRwaBalance: 0n, claimableYield: 0n, price: 1.08 },
+    [AssetType.INVOICES]: {
+      rwaBalance: 5000n * BigInt(10**18),
+      stRwaBalance: 25000n * BigInt(10**18),
+      claimableYield: 450n * BigInt(10**7),
+      price: 1.05
+    },
+    [AssetType.TBILLS]: {
+      rwaBalance: 3000n * BigInt(10**18),
+      stRwaBalance: 15000n * BigInt(10**18),
+      claimableYield: 280n * BigInt(10**7),
+      price: 1.02
+    },
+    [AssetType.REALESTATE]: {
+      rwaBalance: 2000n * BigInt(10**18),
+      stRwaBalance: 10000n * BigInt(10**18),
+      claimableYield: 320n * BigInt(10**7),
+      price: 1.08
+    },
   });
 
-  const [usdcBalance, setUsdcBalance] = useState<bigint>(0n);
+  // Mock vault-specific loan data
+  const [vaultLoans, setVaultLoans] = useState<Record<AssetType, VaultLoanInfo>>({
+    [AssetType.INVOICES]: { borrowedAmount: 12000, hasLoan: true },
+    [AssetType.TBILLS]: { borrowedAmount: 7500, hasLoan: true },
+    [AssetType.REALESTATE]: { borrowedAmount: 0, hasLoan: false },
+  });
+
+  const [usdcBalance, setUsdcBalance] = useState<bigint>(8500n * BigInt(10**7));
   const [activeLoan, setActiveLoan] = useState<any>(null);
 
   const {
@@ -62,10 +97,14 @@ const ProfileSection = () => {
     lendingPoolService,
   } = useContractServices();
 
-  // Load data from contracts
+  // Load data from contracts (disabled - using mock data)
   useEffect(() => {
     if (!isConnected || !address) return;
 
+    // Mock data is already set in initial state
+    // Uncomment below to load real contract data
+
+    /*
     const loadData = async () => {
       try {
         // Load USDC balance
@@ -108,6 +147,7 @@ const ProfileSection = () => {
     loadData();
     const interval = setInterval(loadData, 15000);
     return () => clearInterval(interval);
+    */
   }, [isConnected, address, usdcService, lendingPoolService]);
 
   // Helper functions
@@ -250,7 +290,7 @@ const ProfileSection = () => {
   // Show connect wallet message if not connected
   if (!isConnected) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-white">
+      <div className="w-full h-full flex items-center justify-center ">
         <div className="text-center">
           <Wallet className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Connect Your Wallet</h2>
@@ -290,7 +330,7 @@ const ProfileSection = () => {
       <div className="px-4 py-3 space-y-3 flex-1 overflow-auto">
 
         {/* Portfolio Performance Graph - Compact */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+        <div className="bg-transparent border border-gray-200 rounded-xl p-4 shadow-sm">
           {/* Header with Total Value */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -378,7 +418,7 @@ const ProfileSection = () => {
         </div>
 
         {/* Three Cards in a Row - Risk & Loans, Yield Earnings, Quick Actions - Compact */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-2">
 
           {/* Card 1: Risk & Loans */}
           <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm">
@@ -455,111 +495,14 @@ const ProfileSection = () => {
           </div>
 
           {/* Yield Earnings */}
-          <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-4 h-4 text-green-600" />
-              </div>
-              <div>
-                <h3 className="font-plus-jakarta text-sm font-semibold text-gray-900">Yield Earnings</h3>
-                <p className="text-xs text-gray-600">Available to claim</p>
-              </div>
-            </div>
-
-            <div className="mb-3">
-              <div className="font-antic text-xl font-bold text-gray-900">
-                {formatUSD(totalYield)}
-              </div>
-              <div className="text-xs text-gray-600">Total Available</div>
-            </div>
-
-            {/* Vault-specific yields */}
-            <div className="space-y-2 mb-3 max-h-32 overflow-y-auto">
-              {getAllAssetTypes().map(assetType => {
-                const config = getAssetConfig(assetType);
-                const data = assetBalances[assetType];
-                const yieldAmount = parseFloat(formatBalance(data.claimableYield, 7));
-
-                // Only show vaults where user has staked
-                if (data.stRwaBalance === 0n) return null;
-
-                return (
-                  <div key={assetType} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">{config.emoji}</span>
-                        <div>
-                          <div className="text-sm font-plus-jakarta font-semibold text-gray-900">
-                            {config.displayName}
-                          </div>
-                          <div className="text-xs text-gray-600">
-                            Staked: {formatBalance(data.stRwaBalance)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-xs text-gray-600">Available</div>
-                        <div className="text-lg font-antic font-bold text-green-600">
-                          {formatUSD(yieldAmount)}
-                        </div>
-                      </div>
-                      <Button
-                        onClick={() => handleClaimYield(assetType)}
-                        disabled={yieldAmount === 0}
-                        size="sm"
-                        className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-plus-jakarta"
-                      >
-                        Claim
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {totalYield > 0 && (
-              <Button
-                onClick={handleClaimAllYields}
-                className="w-full bg-primary hover:bg-primary/90 font-plus-jakarta"
-              >
-                Claim All Yields
-              </Button>
-            )}
-          </div>
+          
 
           {/* Quick Actions */}
           <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm">
             <h3 className="font-plus-jakarta text-sm font-semibold text-gray-900 mb-3">Quick Actions</h3>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                <div>
-                  <div className="text-xs font-plus-jakarta font-medium text-gray-900">Auto-Repay</div>
-                  <div className="text-xs text-gray-600">Use yield to auto-pay loans</div>
-                </div>
-                <Switch
-                  checked={autoRepayEnabled}
-                  onCheckedChange={setAutoRepayEnabled}
-                  className="data-[state=checked]:bg-primary"
-                />
-              </div>
-
-              <button className="w-full flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <div>
-                  <div className="text-xs font-plus-jakarta font-medium text-gray-900">Export Portfolio</div>
-                  <div className="text-xs text-gray-600">Download CSV or PDF</div>
-                </div>
-                <Download className="w-4 h-4 text-gray-600" />
-              </button>
-            </div>
-          </div>
-
-        </div>
-
-        {/* Asset Breakdown - Open Modal Button */}
-        <div className="flex justify-center">
+               <div className="flex justify-center">
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline" className="bg-white hover:bg-gray-50 border-gray-300">
@@ -623,6 +566,202 @@ const ProfileSection = () => {
             </DialogContent>
           </Dialog>
         </div>
+
+              <button className="w-full flex items-center justify-between p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                <div>
+                  <div className="text-xs font-plus-jakarta font-medium text-gray-900">Export Portfolio</div>
+                  <div className="text-xs text-gray-600">Download CSV or PDF</div>
+                </div>
+                <Download className="w-4 h-4 text-gray-600" />
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        {/* My Vaults Section */}
+        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Vault className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-plus-jakarta text-lg font-semibold text-gray-900">My Vaults</h3>
+                <p className="text-sm text-gray-600">Active stakes with yield and loan details</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-gray-600">Total Staked</div>
+              <div className="font-antic text-xl font-bold text-purple-600">
+                {formatUSD(totalStaked)}
+              </div>
+            </div>
+          </div>
+
+          {/* Vault Cards Grid */}
+          <div className="grid grid-cols-1 gap-4">
+            {getAllAssetTypes().map(assetType => {
+              const config = getAssetConfig(assetType);
+              const data = assetBalances[assetType];
+              const loanInfo = vaultLoans[assetType];
+              const stRwaAmount = parseFloat(formatBalance(data.stRwaBalance));
+              const yieldAmount = parseFloat(formatBalance(data.claimableYield, 7));
+              const stakedValue = stRwaAmount * data.price;
+
+              // Only show vaults where user has staked
+              if (stRwaAmount === 0) return null;
+
+              return (
+                <div
+                  key={assetType}
+                  className="border-2 border-gray-200 rounded-xl p-5 hover:border-purple-300 transition-all bg-gradient-to-br from-white to-gray-50"
+                >
+                  {/* Vault Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center text-2xl">
+                        {config.emoji}
+                      </div>
+                      <div>
+                        <h4 className="font-plus-jakarta text-lg font-bold text-gray-900">
+                          {config.displayName}
+                        </h4>
+                        <p className="text-xs text-gray-600">
+                          {config.shortName} Vault
+                        </p>
+                      </div>
+                    </div>
+
+                    {loanInfo.hasLoan && (
+                      <div className="px-3 py-1 bg-orange-100 border border-orange-300 rounded-full">
+                        <span className="text-xs font-semibold text-orange-700">Loan Active</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Vault Stats Grid */}
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    {/* Staked Amount */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-3">
+                      <div className="text-xs text-gray-600 mb-1 font-plus-jakarta">Staked Amount</div>
+                      <div className="font-antic text-lg font-bold text-gray-900">
+                        {stRwaAmount.toFixed(2)}
+                      </div>
+                      <div className="text-xs text-purple-600 font-semibold">
+                        {formatUSD(stakedValue)}
+                      </div>
+                    </div>
+
+                    {/* Available Yield */}
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <div className="text-xs text-gray-600 mb-1 font-plus-jakarta">Available Yield</div>
+                      <div className="font-antic text-lg font-bold text-green-700">
+                        {formatUSD(yieldAmount)}
+                      </div>
+                      <div className="text-xs text-green-600 font-semibold">
+                        Ready to claim
+                      </div>
+                    </div>
+
+                    {/* Loan/Borrowed Amount */}
+                    <div className={`border rounded-lg p-3 ${
+                      loanInfo.hasLoan
+                        ? 'bg-orange-50 border-orange-200'
+                        : 'bg-gray-50 border-gray-200'
+                    }`}>
+                      <div className="text-xs text-gray-600 mb-1 font-plus-jakarta">Borrowed</div>
+                      <div className={`font-antic text-lg font-bold ${
+                        loanInfo.hasLoan ? 'text-orange-700' : 'text-gray-500'
+                      }`}>
+                        {loanInfo.hasLoan ? formatUSD(loanInfo.borrowedAmount) : 'No Loan'}
+                      </div>
+                      <div className={`text-xs font-semibold ${
+                        loanInfo.hasLoan ? 'text-orange-600' : 'text-gray-500'
+                      }`}>
+                        {loanInfo.hasLoan ? 'Against collateral' : 'Available'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions Row */}
+                  <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+                    {/* Claim Yield Button */}
+                    <Button
+                      onClick={() => handleClaimYield(assetType)}
+                      disabled={yieldAmount === 0}
+                      className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-plus-jakarta"
+                      size="sm"
+                    >
+                      <DollarSign className="w-4 h-4 mr-2" />
+                      Claim Yield ({formatUSD(yieldAmount)})
+                    </Button>
+
+                    {/* Auto-Repay Toggle */}
+                    {loanInfo.hasLoan && (
+                      <div className="flex items-center gap-3 px-4 py-2 bg-white border border-gray-300 rounded-lg">
+                        <div className="text-sm font-plus-jakarta">
+                          <div className="font-semibold text-gray-900">Auto-Repay</div>
+                          <div className="text-xs text-gray-600">Use yield for loan</div>
+                        </div>
+                        <Switch
+                          checked={vaultAutoRepay[assetType]}
+                          onCheckedChange={(checked) => {
+                            setVaultAutoRepay(prev => ({
+                              ...prev,
+                              [assetType]: checked
+                            }));
+                            toast.success(
+                              checked
+                                ? `Auto-repay enabled for ${config.displayName}`
+                                : `Auto-repay disabled for ${config.displayName}`
+                            );
+                          }}
+                          className="data-[state=checked]:bg-primary"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Auto-Repay Info */}
+                  {loanInfo.hasLoan && vaultAutoRepay[assetType] && (
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <Shield className="w-4 h-4 text-blue-600 mt-0.5" />
+                        <div className="text-xs text-blue-800">
+                          <span className="font-semibold">Auto-Repay Active:</span> Your yield will automatically be used to pay down your {formatUSD(loanInfo.borrowedAmount)} loan on this vault.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Summary Footer */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-600 font-plus-jakarta">Total Claimable Yield Across All Vaults</div>
+                <div className="font-antic text-2xl font-bold text-green-600 mt-1">
+                  {formatUSD(totalYield)}
+                </div>
+              </div>
+              <Button
+                onClick={handleClaimAllYields}
+                disabled={totalYield === 0}
+                className="bg-primary hover:bg-primary/90 font-plus-jakarta"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Claim All Yields
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Asset Breakdown - Open Modal Button */}
+       
 
       </div>
     </div>

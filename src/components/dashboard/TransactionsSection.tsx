@@ -142,7 +142,7 @@ const TransactionsSection = () => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#d8dfe5] rounded-[24px] px-4 py-3">
+    <div className="h-full overflow-auto bg-[#d8dfe5] rounded-[24px] flex flex-col m-4 p-4">
       {/* Header */}
       <div className="border-b border-gray-200 px-6 py-6">
         <div className="flex items-center gap-3 mb-2">
