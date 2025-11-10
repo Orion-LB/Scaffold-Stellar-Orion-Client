@@ -24,15 +24,34 @@ export type { LoanInfo } from './LendingPoolService';
 export type { PriceData } from './OracleService';
 
 // Contract addresses and configuration
-// Loaded from deployed testnet contracts
-// See: orion-backened/Scaffold-Stellar-Orion-Server/Integration_requirements.md
+// ✅ MULTI-ASSET DEPLOYMENT - COMPLETE
+// Deployed: 2025-11-10 | Network: Stellar Testnet
+// Oracle Updated: 2025-11-10 15:26 UTC (fixed get_price crash)
 export const CONTRACT_ADDRESSES = {
+  // Core Infrastructure
   USDC: 'CAXHQJ6IHN2TPAJ4NEOXJJLRRAO74BEAWA3RXHD6NSOWRBQCTVZA3ZGS',
-  MOCK_RWA_A: 'CCHUQ75NY5CFWIXG42RJRZQDMZ2HOAERS4RSX4EL6EEOUE6OMOFLBFVV',
-  STAKED_RWA_A: 'CCCTL6UHRPOODYKYOXAW6Y3NKOFPFKB7QIYRRYGEANM2KHYYYAT4PJUS',
-  RWA_VAULT_A: 'CB3I43AX6VBYTHLVGXK3TVM5RZXLTSHT5RIHOTK2BHORNQY3RF3QH2TT',
-  LENDING_POOL: 'CBJM554JCHWRFG7QFBKMPAPOO4DBJPLKHSH2T7U4FRLCPDS36U44WT5Y',
-  MOCK_ORACLE: 'CD5XYT6WXOB567JC3QZGJ7RWHWP4N3C4GJ5LX75WDWUGL7NPXFJJC6AZ',
+  LENDING_POOL: 'CCW2TFZ7DWNMORNW3QVPYI5VYLNITMUMH42OKILXDLPN2J7HZQ545TWJ',
+  MOCK_ORACLE: 'CDQ3C3T477QZFH6KQMQEA4HTIVIHOMN5YKDWHBDQT4EBO4MNXI5ZXKVX', // ✅ UPDATED 2025-11-10
+
+  // Invoice RWA Tokens - ✅ DEPLOYED
+  RWA_INVOICES: 'CBFKZAVQ57FUWFTPS2SDHDKWZN2OI2MYRNZ4AZ2FHZ5M62FAT4OAC2SP',
+  STRWA_INVOICES: 'CDHGP3XMH2FUQ6FFUHGLDFN5C26W7C6FW5GZ5N743M546KXWKHHK74IL',
+  VAULT_INVOICES: 'CCYADH4LWFOIRCZPWCIMGG46M5ZUUQ3WQUA4FF2BJNSFQUHIKTE32N2G',
+
+  // T-Bills RWA Tokens - ✅ DEPLOYED
+  RWA_TBILLS: 'CD3ZKDA3VG4PQAPXCPJV6VZJ65ACA2N7ISPUF4FN73ITMCNHKCEGMZAW',
+  STRWA_TBILLS: 'CDGL6V3VT6HAIWNDQLYTLWFXF4O7L3TNWYD3OUEE4JNCLX3EXHH2HSEA',
+  VAULT_TBILLS: 'CAFQWK3D3QLMGSW2OL6HE3VTCLCKZKPWNTCTKBM5MFLKKZWIKTA6Z7DP',
+
+  // Real Estate RWA Tokens - ✅ DEPLOYED
+  RWA_REALESTATE: 'CCSCN4NNINMSENMRRFYHW7M6D3NBMK33NE3BA5XCCT26CSCJT5ZKYF46',
+  STRWA_REALESTATE: 'CD5WDVFPWBLERKA3RYQT6L7V5J5NLHL3HP64WYJUVZMNUQLAGPLEYOZR',
+  VAULT_REALESTATE: 'CAGUJJGFK7N5WC4CEYS3CS6QH7RIAWBPZIMB6ELVHGBJ5KBA3R3WMWLI',
+
+  // Legacy single-asset addresses (kept for backwards compatibility)
+  MOCK_RWA_A: 'CBFKZAVQ57FUWFTPS2SDHDKWZN2OI2MYRNZ4AZ2FHZ5M62FAT4OAC2SP', // Using invoices as default
+  STAKED_RWA_A: 'CDHGP3XMH2FUQ6FFUHGLDFN5C26W7C6FW5GZ5N743M546KXWKHHK74IL', // Using invoices as default
+  RWA_VAULT_A: 'CCYADH4LWFOIRCZPWCIMGG46M5ZUUQ3WQUA4FF2BJNSFQUHIKTE32N2G', // Using invoices as default
 };
 
 // Network configuration
@@ -118,14 +137,15 @@ export const createStakedRWAService = (wallet?: StellarWalletProvider, network: 
 };
 
 // ============================================================================
-// TEMPORARY MOCK MULTI-ASSET CONFIGURATION
-// TODO: Replace with actual multi-asset contracts when backend is deployed
-// See: BACKEND_FINAL_REQUIREMENTS.md for full multi-asset architecture
+// ✅ MULTI-ASSET CONFIGURATION - PRODUCTION READY
+// Each asset type now has its own deployed contracts
+// Deployed: 2025-11-10 | Network: Stellar Testnet
+// See: orion/Backened_ready.md for full deployment details
 // ============================================================================
 
 /**
  * Asset types supported by the platform
- * TEMPORARY: All types currently map to the same single deployed contracts
+ * Each type has separate RWA, stRWA, and Vault contracts
  */
 export enum AssetType {
   INVOICES = 'invoices',
@@ -135,8 +155,7 @@ export enum AssetType {
 
 /**
  * Multi-asset contract configuration
- * TEMPORARY: All asset types use the same single deployed contract addresses
- * This allows the UI to work with multi-asset structure before backend deployment
+ * ✅ PRODUCTION READY: Each asset type has unique deployed contracts
  */
 export const ASSET_CONTRACTS = {
   [AssetType.INVOICES]: {
@@ -145,11 +164,12 @@ export const ASSET_CONTRACTS = {
     shortName: 'Invoices',
     symbol: 'iRWA',
     emoji: '📄',
-    rwa: CONTRACT_ADDRESSES.MOCK_RWA_A,
-    stRwa: CONTRACT_ADDRESSES.STAKED_RWA_A,
-    vault: CONTRACT_ADDRESSES.RWA_VAULT_A,
-    mockPrice: 1.05, // Mock oracle price
-    baseAPY: 8.5, // Mock APY
+    rwa: CONTRACT_ADDRESSES.RWA_INVOICES,
+    stRwa: CONTRACT_ADDRESSES.STRWA_INVOICES,
+    vault: CONTRACT_ADDRESSES.VAULT_INVOICES,
+    mockPrice: 1.05, // Oracle price: $1.05 per token
+    baseAPY: 8.5,
+    decimals: 18, // RWA/stRWA token decimals
   },
   [AssetType.TBILLS]: {
     name: 'T-Bills Vault',
@@ -157,11 +177,12 @@ export const ASSET_CONTRACTS = {
     shortName: 'T-Bills',
     symbol: 'tRWA',
     emoji: '🏦',
-    rwa: CONTRACT_ADDRESSES.MOCK_RWA_A, // TEMP: Same contract
-    stRwa: CONTRACT_ADDRESSES.STAKED_RWA_A, // TEMP: Same contract
-    vault: CONTRACT_ADDRESSES.RWA_VAULT_A, // TEMP: Same contract
-    mockPrice: 1.02,
+    rwa: CONTRACT_ADDRESSES.RWA_TBILLS,
+    stRwa: CONTRACT_ADDRESSES.STRWA_TBILLS,
+    vault: CONTRACT_ADDRESSES.VAULT_TBILLS,
+    mockPrice: 1.02, // Oracle price: $1.02 per token
     baseAPY: 5.2,
+    decimals: 18,
   },
   [AssetType.REALESTATE]: {
     name: 'Real Estate',
@@ -169,11 +190,12 @@ export const ASSET_CONTRACTS = {
     shortName: 'Real Estate',
     symbol: 'rRWA',
     emoji: '🏢',
-    rwa: CONTRACT_ADDRESSES.MOCK_RWA_A, // TEMP: Same contract
-    stRwa: CONTRACT_ADDRESSES.STAKED_RWA_A, // TEMP: Same contract
-    vault: CONTRACT_ADDRESSES.RWA_VAULT_A, // TEMP: Same contract
-    mockPrice: 1.08,
+    rwa: CONTRACT_ADDRESSES.RWA_REALESTATE,
+    stRwa: CONTRACT_ADDRESSES.STRWA_REALESTATE,
+    vault: CONTRACT_ADDRESSES.VAULT_REALESTATE,
+    mockPrice: 1.08, // Oracle price: $1.08 per token
     baseAPY: 12.3,
+    decimals: 18,
   },
 };
 
@@ -196,7 +218,7 @@ export const getAssetConfig = (assetType: AssetType) => {
 
 /**
  * Get asset type from contract address
- * TEMPORARY: Since all assets use same contracts, returns first match
+ * Looks up which asset type a contract address belongs to
  * @param contractAddress - The contract address to look up
  * @returns AssetType or undefined
  */

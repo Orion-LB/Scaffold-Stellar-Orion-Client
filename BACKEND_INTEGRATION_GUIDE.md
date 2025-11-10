@@ -75,7 +75,7 @@ ProfileSection.tsx (useEffect triggered):
 **Required Backend Function:**
 ```rust
 // In RWA Token Contract
-pub fn mint_rwa_tokens(env: Env, to: Address, amount: i128) -> Result<(), Error> {
+pub fn mint_rwa_tokenss(env: Env, to: Address, amount: i128) -> Result<(), Error> {
     // 1. Mint RWA tokens to user
     // 2. Automatically whitelist user (call allow_user internally)
     // 3. For hackathon: No admin check (anyone can call)
@@ -88,7 +88,7 @@ pub fn mint_rwa_tokens(env: Env, to: Address, amount: i128) -> Result<(), Error>
 const handleGetMockRWA = async () => {
   // TODO: Uncomment when backend ready
   // const mintAmount = BigInt(1000 * 1e18);
-  // const result = await rwaService.mint_rwa_tokens(address, mintAmount);
+  // const result = await rwaService.mint_rwa_tokenss(address, mintAmount);
 }
 ```
 
@@ -423,13 +423,13 @@ All contract addresses must be updated in `/src/services/contracts/index.ts` aft
 
 **Missing Functions:**
 ```typescript
-❌ mint_rwa_tokens(to: string, amount: bigint): Promise<TransactionResult>
+❌ mint_rwa_tokenss(to: string, amount: bigint): Promise<TransactionResult>
    // Required for "Get RWA Tokens" button
    // Should mint + auto-whitelist user
 ```
 
 **Frontend Usage:**
-- StakeSection: balance(), approve(), mint_rwa_tokens() [missing]
+- StakeSection: balance(), approve(), mint_rwa_tokenss() [missing]
 - ProfileSection: balance()
 
 ---
@@ -565,7 +565,7 @@ useEffect(() => {
 // Get RWA Tokens Button
 const handleGetMockRWA = async () => {
   // ❌ MISSING - Backend function needed
-  // const result = await rwaService.mint_rwa_tokens(address, BigInt(1000 * 1e18));
+  // const result = await rwaService.mint_rwa_tokenss(address, BigInt(1000 * 1e18));
 
   toast.info("RWA Token minting function not yet implemented in backend");
 };
@@ -734,13 +734,13 @@ const handleClaimYield = async () => {
 
 ### 1. RWA Token Minting Function (CRITICAL)
 
-**Function:** `mint_rwa_tokens()`
+**Function:** `mint_rwa_tokenss()`
 
 **Contract:** RWA Token Contract (`MOCK_RWA_A`)
 
 **Required Signature:**
 ```rust
-pub fn mint_rwa_tokens(env: Env, to: Address, amount: i128) -> Result<(), Error> {
+pub fn mint_rwa_tokenss(env: Env, to: Address, amount: i128) -> Result<(), Error> {
     // 1. Mint RWA tokens to the specified address
     token::mint(&env, &to, amount);
 
@@ -762,13 +762,13 @@ pub fn mint_rwa_tokens(env: Env, to: Address, amount: i128) -> Result<(), Error>
 **Frontend Integration:**
 ```typescript
 // Add to MockRWAService.ts
-async mint_rwa_tokens(
+async mint_rwa_tokenss(
   to: string,
   amount: bigint,
   wallet?: StellarWalletProvider
 ): Promise<TransactionResult> {
   return this.invokeContract(
-    "mint_rwa_tokens",
+    "mint_rwa_tokenss",
     {
       to: this.createAddress(to),
       amount: amount
@@ -782,7 +782,7 @@ async mint_rwa_tokens(
 ```typescript
 const handleGetMockRWA = async () => {
   const mintAmount = BigInt(1000 * 1e18); // 1000 RWA tokens
-  const result = await rwaService.mint_rwa_tokens(address, mintAmount);
+  const result = await rwaService.mint_rwa_tokenss(address, mintAmount);
 
   if (result.success) {
     toast.success("Successfully minted 1000 RWA tokens!");
@@ -846,7 +846,7 @@ pub fn stake(env: Env, user: Address, amount: i128) -> Result<(), Error> {
 
 ### Pre-Deployment
 
-- [ ] **1. Add `mint_rwa_tokens()` to RWA Token Contract**
+- [ ] **1. Add `mint_rwa_tokenss()` to RWA Token Contract**
   - Function signature matches specification
   - Mints specified amount to user
   - Auto-whitelists user
@@ -985,7 +985,7 @@ pub fn stake(env: Env, user: Address, amount: i128) -> Result<(), Error> {
 src/services/contracts/
 ├── index.ts                    # Contract addresses & exports
 ├── ContractService.ts          # Base abstract class
-├── MockRWAService.ts           # RWA Token (needs mint_rwa_tokens)
+├── MockRWAService.ts           # RWA Token (needs mint_rwa_tokenss)
 ├── StakedRWAService.ts         # stRWA Token
 ├── VaultService.ts             # Vault (needs stake modification)
 ├── LendingPoolService.ts       # Lending Pool
@@ -1000,13 +1000,13 @@ src/services/contracts/
 // File: src/services/contracts/MockRWAService.ts
 
 // Add to class:
-async mint_rwa_tokens(
+async mint_rwa_tokenss(
   to: string,
   amount: bigint,
   wallet?: StellarWalletProvider
 ): Promise<TransactionResult> {
   return this.invokeContract(
-    "mint_rwa_tokens",
+    "mint_rwa_tokenss",
     {
       to: this.createAddress(to),
       amount: amount
@@ -1024,7 +1024,7 @@ const handleGetMockRWA = async () => {
   setLoading(true);
   try {
     const mintAmount = BigInt(1000 * 1e18);
-    const result = await rwaService.mint_rwa_tokens(address, mintAmount);
+    const result = await rwaService.mint_rwa_tokenss(address, mintAmount);
 
     if (result.success) {
       toast.success("Successfully minted 1000 RWA tokens!");
@@ -1142,4 +1142,4 @@ For questions about backend integration:
 
 **Last Updated:** 2025-01-09
 **Frontend Version:** Latest with multi-asset collateral
-**Backend Status:** Awaiting mint_rwa_tokens() and stake() modification
+**Backend Status:** Awaiting mint_rwa_tokenss() and stake() modification

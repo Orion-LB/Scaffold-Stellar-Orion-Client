@@ -10,19 +10,10 @@ import {
 } from "lucide-react";
 import { useContractServices } from "@/hooks/useContractServices";
 import { toast } from "sonner";
+import { getTransactions, type Transaction } from "@/lib/localStorage";
 
 type TransactionType = "Stake" | "Unstake" | "Borrow" | "Repay" | "Claim" | "Mint";
 type FilterType = "All" | TransactionType;
-
-interface Transaction {
-  id: string;
-  type: TransactionType;
-  asset: string;
-  amount: string;
-  date: string;
-  hash: string;
-  status: "Completed" | "Pending" | "Failed";
-}
 
 const TransactionsSection = () => {
   const [filter, setFilter] = useState<FilterType>("All");
@@ -31,63 +22,24 @@ const TransactionsSection = () => {
 
   const { isConnected, address } = useContractServices();
 
-  // Mock transactions (TODO: Replace with actual blockchain event fetching)
+  // Load transactions from localStorage
   useEffect(() => {
     if (!isConnected || !address) {
       setTransactions([]);
       return;
     }
 
-    // Mock data - In production, this would fetch from contract events
-    const mockTransactions: Transaction[] = [
-      {
-        id: "1",
-        type: "Stake",
-        asset: "Invoice RWA",
-        amount: "50.00",
-        date: "2 hours ago",
-        hash: "0x1234...5678",
-        status: "Completed"
-      },
-      {
-        id: "2",
-        type: "Claim",
-        asset: "T-Bills Vault",
-        amount: "$45.00",
-        date: "1 day ago",
-        hash: "0xabcd...efgh",
-        status: "Completed"
-      },
-      {
-        id: "3",
-        type: "Borrow",
-        asset: "USDC",
-        amount: "$1,200.00",
-        date: "3 days ago",
-        hash: "0x9876...5432",
-        status: "Completed"
-      },
-      {
-        id: "4",
-        type: "Repay",
-        asset: "USDC",
-        amount: "$100.00",
-        date: "5 days ago",
-        hash: "0xfedc...ba98",
-        status: "Completed"
-      },
-      {
-        id: "5",
-        type: "Mint",
-        asset: "Invoice RWA",
-        amount: "100.00",
-        date: "1 week ago",
-        hash: "0x1111...2222",
-        status: "Completed"
-      },
-    ];
+    // Load transactions from localStorage
+    const loadedTransactions = getTransactions(address);
+    setTransactions(loadedTransactions);
 
-    setTransactions(mockTransactions);
+    // Optional: Poll for updates every 5 seconds to catch new transactions
+    const interval = setInterval(() => {
+      const updatedTransactions = getTransactions(address);
+      setTransactions(updatedTransactions);
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [isConnected, address]);
 
   const filteredTransactions = transactions.filter(tx =>

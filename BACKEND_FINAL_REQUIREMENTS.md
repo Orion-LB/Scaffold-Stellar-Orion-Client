@@ -57,9 +57,9 @@ ASSET SET 3: REAL ESTATE (3 contracts):
 
 **Required Functions:**
 
-#### A. mint_rwa_tokens()
+#### A. mint_rwa_tokenss()
 ```rust
-pub fn mint_rwa_tokens(env: Env, to: Address, amount: i128) -> Result<(), Error> {
+pub fn mint_rwa_tokenss(env: Env, to: Address, amount: i128) -> Result<(), Error> {
     to.require_auth();
 
     // 1. Mint tokens
@@ -941,7 +941,7 @@ After deployment, verify:
 
 ```bash
 # Test each asset type
-stellar contract invoke --id <RWA_INVOICES> --fn mint_rwa_tokens \
+stellar contract invoke --id <RWA_INVOICES> --fn mint_rwa_tokenss \
   --arg to:<TEST_USER> \
   --arg amount:100000000000000000000  # 100 tokens
 

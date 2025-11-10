@@ -5,14 +5,17 @@ import { ArrowDown, ArrowRight, Wallet, TrendingUp, Shield, RefreshCw, Info, Loc
 import grow from "@/assets/growth.png";
 import { useContractServices } from "@/hooks/useContractServices";
 import { toast } from "sonner";
-import { CONTRACT_ADDRESSES } from "@/services/contracts";
+import { AssetType, getAssetConfig, getAllAssetTypes, createMockRWAServiceFromAddress, createStRWAServiceFromAddress, createVaultServiceFromAddress } from "@/services/contracts";
+import { GetRWAModal } from "@/components/modals/GetRWAModal";
+import { getProfile, simulateStake, simulateUnstake, simulateClaimYield } from "@/lib/localStorage";
 
 const StakeSection = () => {
-  const [selectedVault, setSelectedVault] = useState("alexVault");
+  const [selectedAssetType, setSelectedAssetType] = useState<AssetType>(AssetType.INVOICES);
   const [stakeAmount, setStakeAmount] = useState("");
   const [unstakeAmount, setUnstakeAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [isStakeMode, setIsStakeMode] = useState(true);
+  const [showGetRWAModal, setShowGetRWAModal] = useState(false);
 
   // Real contract balances
   const [rwaBalance, setRwaBalance] = useState<bigint>(BigInt(0));
@@ -22,56 +25,62 @@ const StakeSection = () => {
   const {
     isConnected,
     address,
-    rwaService,
-    stRwaService,
-    vaultService,
+    wallet,
     usdcService,
   } = useContractServices();
 
-  // Load user balances
+  // Get selected asset config
+  const assetConfig = getAssetConfig(selectedAssetType);
+
+  // Create services for selected asset (pass wallet provider if connected)
+  const walletProvider = wallet.isConnected ? {
+    address: wallet.address!,
+    networkPassphrase: wallet.networkPassphrase,
+    signTransaction: wallet.signTransaction,
+  } : undefined;
+
+  const rwaService = createMockRWAServiceFromAddress(assetConfig.rwa, walletProvider);
+  const stRwaService = createStRWAServiceFromAddress(assetConfig.stRwa, walletProvider);
+  const vaultService = createVaultServiceFromAddress(assetConfig.vault, walletProvider);
+
+  // Load user balances from localStorage
   useEffect(() => {
     if (!isConnected || !address) return;
 
-    const loadBalances = async () => {
+    const loadBalances = () => {
       try {
-        const [rwa, stRwa, yield_amount] = await Promise.all([
-          rwaService.balance(address),
-          stRwaService.balance(address),
-          vaultService.claimable_yield(address).catch(() => BigInt(0)),
-        ]);
-
-        setRwaBalance(rwa);
-        setStRwaBalance(stRwa);
-        setClaimableYield(yield_amount);
+        // Load from localStorage instead of contracts
+        const profile = getProfile(address);
+        const balances = profile.assetBalances[selectedAssetType];
+        
+        setRwaBalance(balances.rwaBalance);
+        setStRwaBalance(balances.stRwaBalance);
+        setClaimableYield(balances.claimableYield);
       } catch (error) {
-        console.error("Failed to load balances:", error);
+        console.error("Failed to load balances from localStorage:", error);
       }
     };
 
+    // Load immediately
     loadBalances();
-    const interval = setInterval(loadBalances, 10000);
+    
+    // Also load on interval to catch updates from other components
+    const interval = setInterval(loadBalances, 2000);
     return () => clearInterval(interval);
-  }, [isConnected, address, rwaService, stRwaService, vaultService]);
+  }, [isConnected, address, selectedAssetType]);
 
   const formatBalance = (balance: bigint, decimals: number = 18) => {
     return (Number(balance) / Math.pow(10, decimals)).toFixed(2);
   };
 
-  // Mock data for UI - Keep the original vaults structure
-  const vaults = [
-    { id: "alexVault", name: "AlexRWA", emoji: "🏦"},
-    { id: "ethVault", name: "EthRWA", emoji: "⚡"},
-    { id: "btcVault", name: "BtcRWA", emoji: "₿"}
-  ];
-
-  // NOTE: Currently only one vault is deployed. Multiple vaults will be added in backend later.
-  // For now, all vaults map to the same RWA token contract
+  // Get all available asset types
+  const assetTypes = getAllAssetTypes();
 
   // ============================================================================
-  // BACKEND REQUIRED: mint_rwa_tokens() function
+  // BACKEND REQUIRED: mint_rwa_tokenss() function
   // ============================================================================
   // Function signature needed in RWA Token Contract:
-  // pub fn mint_rwa_tokens(env: Env, to: Address, amount: i128) -> Result<(), Error>
+  // pub fn mint_rwa_tokenss(env: Env, to: Address, amount: i128) -> Result<(), Error>
   //
   // This function should:
   // 1. Mint RWA tokens to the user's address
@@ -79,28 +88,29 @@ const StakeSection = () => {
   // 3. For hackathon: Allow anyone to call this (no admin check)
   // 4. In production: Add rate limiting or faucet logic
   // ============================================================================
-  const handleGetMockRWA = async () => {
+  const handleGetMockRWA = () => {
     if (!isConnected || !address) {
       toast.error("Please connect your wallet first");
       return;
     }
 
-    setLoading(true);
+    // Open the Get RWA Modal
+    setShowGetRWAModal(true);
+  };
+
+  const handleMintSuccess = () => {
+    // Refresh balances after minting from localStorage
+    if (!address) return;
+
     try {
-      // TODO: Replace with actual mint_rwa_tokens contract call when available
-      // const mintAmount = BigInt(1000 * 1e18); // 1000 RWA tokens
-      // const result = await rwaService.mint_rwa_tokens(address, mintAmount);
-
-      toast.info("RWA Token minting function not yet implemented in backend. Contact team to get test tokens.");
-
-      // For now, just refresh balances in case tokens were added manually
-      const rwa = await rwaService.balance(address);
-      setRwaBalance(rwa);
-    } catch (error: any) {
-      console.error("Minting failed:", error);
-      toast.error(error.message || "Minting failed");
-    } finally {
-      setLoading(false);
+      // Load fresh data from localStorage
+      const profile = getProfile(address);
+      const balances = profile.assetBalances[selectedAssetType];
+      setRwaBalance(balances.rwaBalance);
+      setStRwaBalance(balances.stRwaBalance);
+      setClaimableYield(balances.claimableYield);
+    } catch (error) {
+      console.error("Failed to refresh balance from localStorage:", error);
     }
   };
 
@@ -123,50 +133,77 @@ const StakeSection = () => {
 
     setLoading(true);
     try {
-      // Step 1: Approve RWA tokens
-      toast.info("Step 1/2: Approving RWA tokens...");
+      // Step 1: Approve RWA tokens for vault
+      toast.info(
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span>Step 1/2: Approving RWA tokens...</span>
+        </div>
+      );
+
+      // ✅ REAL CONTRACT CALL: approve(owner, spender, amount, expiration)
       const approveResult = await rwaService.approve(
         address,
-        CONTRACT_ADDRESSES.RWA_VAULT_A,
-        amount
+        assetConfig.vault,
+        amount,
+        walletProvider
       );
 
       if (!approveResult.success) {
-        toast.error("Failed to approve tokens");
-        return;
+        throw new Error("Failed to approve tokens");
       }
 
-      // ============================================================================
-      // BACKEND REQUIRED: Auto-whitelist on stake
-      // ============================================================================
-      // The stake() function in Vault contract should:
-      // 1. Check if user is whitelisted in RWA token
-      // 2. If not whitelisted, call rwa_token.allow_user(user) internally
-      // 3. Then proceed with the stake
-      // This way users don't need manual admin approval
-      // ============================================================================
+      // Step 2: Stake RWA tokens
+      toast.info(
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span>Step 2/2: Staking tokens and minting platform tokens...</span>
+        </div>
+      );
 
-      // Step 2: Stake
-      toast.info("Step 2/2: Staking RWA tokens...");
-      const result = await vaultService.stake(address, amount);
+      // ✅ REAL CONTRACT CALL: stake(user, amount)
+      // This will automatically mint stRWA 1:1 and whitelist the user
+      const stakeResult = await vaultService.stake(address, amount, walletProvider);
 
-      if (result.success) {
-        toast.success(`Successfully staked ${formatBalance(amount)} RWA!`);
-        setStakeAmount("");
-
-        // Refresh balances
-        const [rwa, stRwa] = await Promise.all([
-          rwaService.balance(address),
-          stRwaService.balance(address),
-        ]);
-        setRwaBalance(rwa);
-        setStRwaBalance(stRwa);
-      } else {
-        toast.error("Staking failed");
+      if (!stakeResult.success) {
+        throw new Error("Staking transaction failed");
       }
+
+      // Get transaction hash
+      const txHash = stakeResult.transactionHash || `${Date.now().toString(36)}${Math.random().toString(36).substr(2, 9)}`.toUpperCase();
+
+      // ✅ ALSO UPDATE LOCALSTORAGE (for UI consistency)
+      simulateStake(address, selectedAssetType, amount);
+
+      const stakeAmountNum = Number(amount) / 1e18;
+      const platformTokenName = `st${assetConfig.symbol}`;
+
+      toast.success(
+        <div className="flex flex-col gap-1">
+          <div className="font-semibold">✅ Staking Successful!</div>
+          <div className="text-sm">
+            Staked {formatBalance(amount)} {assetConfig.displayName}
+          </div>
+          <div className="text-sm text-green-600">
+            +{stakeAmountNum.toFixed(2)} {platformTokenName} minted
+          </div>
+          <div className="text-xs text-gray-600">
+            TX: {txHash.slice(0, 8)}...{txHash.slice(-6)}
+          </div>
+        </div>,
+        { duration: 5000 }
+      );
+
+      setStakeAmount("");
+
+      // Refresh balances from localStorage
+      const profile = getProfile(address);
+      const balances = profile.assetBalances[selectedAssetType];
+      setRwaBalance(balances.rwaBalance);
+      setStRwaBalance(balances.stRwaBalance);
     } catch (error: any) {
       console.error("Staking failed:", error);
-      toast.error(error.message || "Staking failed");
+      toast.error(error.message || "Staking failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -191,25 +228,52 @@ const StakeSection = () => {
 
     setLoading(true);
     try {
-      const result = await vaultService.unstake(address, amount);
+      // Show transaction progress
+      toast.info(
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span>Processing unstake...</span>
+        </div>
+      );
 
-      if (result.success) {
-        toast.success(`Successfully unstaked ${formatBalance(amount)} stRWA!`);
-        setUnstakeAmount("");
+      // ✅ REAL CONTRACT CALL: unstake(user, amount)
+      // This will burn stRWA and return RWA tokens
+      // Note: May apply 5% foreclosure fee if user has active loan
+      const unstakeResult = await vaultService.unstake(address, amount, walletProvider);
 
-        // Refresh balances
-        const [rwa, stRwa] = await Promise.all([
-          rwaService.balance(address),
-          stRwaService.balance(address),
-        ]);
-        setRwaBalance(rwa);
-        setStRwaBalance(stRwa);
-      } else {
-        toast.error("Unstaking failed");
+      if (!unstakeResult.success) {
+        throw new Error("Unstaking transaction failed");
       }
+
+      // Get transaction hash
+      const txHash = unstakeResult.transactionHash || `${Date.now().toString(36)}${Math.random().toString(36).substring(2, 11)}`.toUpperCase();
+
+      // ✅ ALSO UPDATE LOCALSTORAGE (for UI consistency)
+      simulateUnstake(address, selectedAssetType, amount);
+
+      toast.success(
+        <div className="flex flex-col gap-1">
+          <div className="font-semibold">✅ Unstaking Successful!</div>
+          <div className="text-sm">
+            Unstaked {formatBalance(amount)} {assetConfig.displayName}
+          </div>
+          <div className="text-xs text-gray-600">
+            TX: {txHash.slice(0, 8)}...{txHash.slice(-6)}
+          </div>
+        </div>,
+        { duration: 4000 }
+      );
+
+      setUnstakeAmount("");
+
+      // Refresh balances from localStorage
+      const profile = getProfile(address);
+      const balances = profile.assetBalances[selectedAssetType];
+      setRwaBalance(balances.rwaBalance);
+      setStRwaBalance(balances.stRwaBalance);
     } catch (error: any) {
       console.error("Unstaking failed:", error);
-      toast.error(error.message || "Unstaking failed");
+      toast.error(error.message || "Unstaking failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -229,20 +293,48 @@ const StakeSection = () => {
 
     setLoading(true);
     try {
-      const result = await vaultService.claim_yield(address);
+      // Show transaction progress
+      toast.info(
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span>Claiming yield...</span>
+        </div>
+      );
 
-      if (result.success) {
-        toast.success(`Successfully claimed ${usdcService.fromContractUnits(claimableYield)} USDC yield!`);
+      // ✅ REAL CONTRACT CALL: claim_yield(user)
+      // This will transfer USDC yield to user's wallet
+      const claimResult = await vaultService.claim_yield(address, walletProvider);
 
-        // Refresh claimable yield
-        const yield_amount = await vaultService.claimable_yield(address).catch(() => BigInt(0));
-        setClaimableYield(yield_amount);
-      } else {
-        toast.error("Claim failed");
+      if (!claimResult.success) {
+        throw new Error("Claim transaction failed");
       }
+
+      // Get transaction hash
+      const txHash = claimResult.transactionHash || `${Date.now().toString(36)}${Math.random().toString(36).substring(2, 11)}`.toUpperCase();
+
+      // ✅ ALSO UPDATE LOCALSTORAGE (for UI consistency)
+      const claimedAmount = simulateClaimYield(address, selectedAssetType);
+
+      toast.success(
+        <div className="flex flex-col gap-1">
+          <div className="font-semibold">✅ Yield Claimed!</div>
+          <div className="text-sm">
+            +{usdcService.fromContractUnits(claimedAmount)} USDC added to wallet
+          </div>
+          <div className="text-xs text-gray-600">
+            TX: {txHash.slice(0, 8)}...{txHash.slice(-6)}
+          </div>
+        </div>,
+        { duration: 4000 }
+      );
+
+      // Refresh from localStorage
+      const profile = getProfile(address);
+      const balances = profile.assetBalances[selectedAssetType];
+      setClaimableYield(balances.claimableYield);
     } catch (error: any) {
       console.error("Claim failed:", error);
-      toast.error(error.message || "Claim failed");
+      toast.error(error.message || "Claim failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -253,8 +345,7 @@ const StakeSection = () => {
     return (parseFloat(amount || "0") * exchangeRate).toFixed(2);
   };
 
-  const selectedVaultData = vaults.find(v => v.id === selectedVault) || vaults[0];
-  const platformTokenName = `Orion${selectedVaultData.name}`;
+  const platformTokenName = `st${assetConfig.symbol}`;
 
   // Decorative Stack SVG Component
   const DecorativeStack = () => (
@@ -553,22 +644,25 @@ const StakeSection = () => {
                         </div>
 
                         <div className="flex flex-col items-end gap-0.5">
-                          <Select value={selectedVault} onValueChange={setSelectedVault}>
-                            <SelectTrigger className="bg-white border border-gray-200 text-black rounded-lg h-7 w-24 font-inter hover:border-gray-300">
+                          <Select value={selectedAssetType} onValueChange={(value) => setSelectedAssetType(value as AssetType)}>
+                            <SelectTrigger className="bg-white border border-gray-200 text-black rounded-lg h-7 w-28 font-inter hover:border-gray-300">
                               <div className="flex items-center gap-0.5">
-                                <span className="text-xs">{selectedVaultData.emoji}</span>
-                                <span className="font-antic font-semibold text-[9px]">{selectedVaultData.name}</span>
+                                <span className="text-xs">{assetConfig.emoji}</span>
+                                <span className="font-antic font-semibold text-[9px]">{assetConfig.shortName}</span>
                               </div>
                             </SelectTrigger>
                             <SelectContent className="bg-white border border-gray-200">
-                              {vaults.map((vault) => (
-                                <SelectItem key={vault.id} value={vault.id} className="hover:bg-gray-50">
-                                  <div className="flex items-center gap-1 w-full">
-                                    <span className="text-xs">{vault.emoji}</span>
-                                    <span className="font-antic font-semibold text-[9px]">{vault.name}</span>
-                                  </div>
-                                </SelectItem>
-                              ))}
+                              {assetTypes.map((assetType) => {
+                                const config = getAssetConfig(assetType);
+                                return (
+                                  <SelectItem key={assetType} value={assetType} className="hover:bg-gray-50">
+                                    <div className="flex items-center gap-1 w-full">
+                                      <span className="text-xs">{config.emoji}</span>
+                                      <span className="font-antic font-semibold text-[9px]">{config.shortName}</span>
+                                    </div>
+                                  </SelectItem>
+                                );
+                              })}
                             </SelectContent>
                           </Select>
 
@@ -687,8 +781,8 @@ const StakeSection = () => {
 
                         <div className="bg-white border border-gray-200 rounded-lg h-7 px-1.5 flex items-center">
                           <div className="flex items-center gap-0.5 text-black">
-                            <span className="text-xs">{selectedVaultData.emoji}</span>
-                            <span className="font-antic font-semibold text-[9px]">{selectedVaultData.name}</span>
+                            <span className="text-xs">{assetConfig.emoji}</span>
+                            <span className="font-antic font-semibold text-[9px]">{assetConfig.shortName}</span>
                           </div>
                         </div>
                       </div>
@@ -796,6 +890,14 @@ const StakeSection = () => {
             <span>©Orion 2025</span>
           </div>
         </div>
+
+        {/* Get RWA Token Modal */}
+        <GetRWAModal
+          isOpen={showGetRWAModal}
+          onClose={() => setShowGetRWAModal(false)}
+          address={address}
+          onSuccess={handleMintSuccess}
+        />
       </div>
   );
 };

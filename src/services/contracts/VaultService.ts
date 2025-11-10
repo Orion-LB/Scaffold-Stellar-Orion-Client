@@ -86,6 +86,71 @@ export class VaultService extends ContractService {
     return await this.invokeContract('set_lending_pool', { lending_pool: lendingPoolAddress }, wallet);
   }
 
+  // ============ Lending Pool Integration (Called by LendingPool) ============
+
+  /**
+   * Mark user as borrower (called by lending pool when loan originates)
+   * Sets borrower flag and tracks borrowed amount for foreclosure fee calculation
+   */
+  async mark_as_borrower(
+    userAddress: string,
+    borrowedAmount: bigint,
+    loanPeriod: bigint,
+    wallet?: StellarWalletProvider
+  ): Promise<TransactionResult> {
+    return await this.invokeContract('mark_as_borrower', {
+      user: userAddress,
+      borrowed_amount: borrowedAmount.toString(),
+      loan_period: loanPeriod.toString()
+    }, wallet);
+  }
+
+  /**
+   * Pull yield for loan repayment (called by lending pool during repayment)
+   * Auto-repay mechanism: Uses accumulated yield to pay down loan
+   * Returns actual amount pulled
+   */
+  async pull_yield_for_repay(
+    userAddress: string,
+    amount: bigint,
+    wallet?: StellarWalletProvider
+  ): Promise<TransactionResult> {
+    return await this.invokeContract('pull_yield_for_repay', {
+      user: userAddress,
+      amount: amount.toString()
+    }, wallet);
+  }
+
+  /**
+   * Update borrowed amount (called by lending pool after repayments)
+   * If amount reaches 0, clears is_borrower flag
+   */
+  async update_borrowed_amount(
+    userAddress: string,
+    newAmount: bigint,
+    wallet?: StellarWalletProvider
+  ): Promise<TransactionResult> {
+    return await this.invokeContract('update_borrowed_amount', {
+      user: userAddress,
+      new_amount: newAmount.toString()
+    }, wallet);
+  }
+
+  /**
+   * Set LP liquidity used (called by lending pool to track LP funds in loans)
+   * Prevents LPs from unstaking funds that are locked in active loans
+   */
+  async set_lp_liquidity_used(
+    lpAddress: string,
+    amountUsed: bigint,
+    wallet?: StellarWalletProvider
+  ): Promise<TransactionResult> {
+    return await this.invokeContract('set_lp_liquidity_used', {
+      lp: lpAddress,
+      amount_used: amountUsed.toString()
+    }, wallet);
+  }
+
   // ============ Helper Methods ============
 
   /**

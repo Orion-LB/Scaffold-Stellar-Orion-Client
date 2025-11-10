@@ -12,12 +12,12 @@ This document provides **exact code changes** needed for each architectural opti
 
 ### Backend Changes Needed:
 
-#### 1. Add `mint_rwa_tokens()` to RWA Contract
+#### 1. Add `mint_rwa_tokenss()` to RWA Contract
 
 **File:** `contracts/rwa_token/src/lib.rs`
 
 ```rust
-pub fn mint_rwa_tokens(env: Env, to: Address, amount: i128) -> Result<(), Error> {
+pub fn mint_rwa_tokenss(env: Env, to: Address, amount: i128) -> Result<(), Error> {
     to.require_auth();  // User must sign
 
     // 1. Mint tokens
@@ -76,13 +76,13 @@ pub fn stake(env: Env, user: Address, amount: i128) -> Result<(), Error> {
 **File:** `src/services/contracts/MockRWAService.ts`
 
 ```typescript
-async mint_rwa_tokens(to: string, amount: bigint) {
+async mint_rwa_tokenss(to: string, amount: bigint) {
   const args = [
     this.createAddress(to),
     nativeToScVal(amount, { type: 'i128' })
   ];
 
-  return this.invokeContract('mint_rwa_tokens', args);
+  return this.invokeContract('mint_rwa_tokenss', args);
 }
 ```
 
@@ -100,7 +100,7 @@ const handleGetMockRWA = async () => {
     setIsGettingTokens(true);
 
     // Call actual contract function
-    await mockRWAService.mint_rwa_tokens(
+    await mockRWAService.mint_rwa_tokenss(
       address,
       1000n * 10n ** 18n  // 1000 RWA tokens
     );
@@ -186,7 +186,7 @@ struct UserBalance {
     by_type: Map<AssetType, i128>,
 }
 
-pub fn mint_rwa_tokens(
+pub fn mint_rwa_tokenss(
     env: Env,
     to: Address,
     asset_type: AssetType,
@@ -643,7 +643,7 @@ const handleSelectAsset = async (assetType: AssetType) => {
   const assetConfig = ASSET_CONTRACTS[assetType];
   const rwaService = new MockRWAService(assetConfig.rwa);
 
-  await rwaService.mint_rwa_tokens(address, 100n * 10n ** 18n);
+  await rwaService.mint_rwa_tokenss(address, 100n * 10n ** 18n);
 
   toast.success(`Minted 100 ${assetConfig.displayName} tokens!`);
   await fetchBalances();

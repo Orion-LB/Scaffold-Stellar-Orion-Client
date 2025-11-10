@@ -9,7 +9,7 @@ The frontend has been integrated with contract calls, but some backend functions
 
 ## 1. RWA Token Contract - Minting Function
 
-### Required Function: `mint_rwa_tokens`
+### Required Function: `mint_rwa_tokenss`
 
 **Location:** RWA Token Contract (MockRWA)
 
@@ -17,7 +17,7 @@ The frontend has been integrated with contract calls, but some backend functions
 
 **Function Signature:**
 ```rust
-pub fn mint_rwa_tokens(env: Env, to: Address, amount: i128) -> Result<(), Error>
+pub fn mint_rwa_tokenss(env: Env, to: Address, amount: i128) -> Result<(), Error>
 ```
 
 **Requirements:**
@@ -34,7 +34,7 @@ pub fn mint_rwa_tokens(env: Env, to: Address, amount: i128) -> Result<(), Error>
 
 **Implementation Example:**
 ```rust
-pub fn mint_rwa_tokens(env: Env, to: Address, amount: i128) -> Result<(), Error> {
+pub fn mint_rwa_tokenss(env: Env, to: Address, amount: i128) -> Result<(), Error> {
     to.require_auth(); // User must sign the transaction
 
     // Mint tokens
@@ -229,7 +229,7 @@ npm start
    - Transaction signing with Freighter
 
 ### ⚠️ Pending Backend Functions:
-1. `mint_rwa_tokens()` - RWA Token Contract
+1. `mint_rwa_tokenss()` - RWA Token Contract
 2. Auto-whitelist in `stake()` - Vault Contract
 3. Oracle price bot running - Infrastructure
 
@@ -247,7 +247,7 @@ Once backend functions are added, test in this order:
 ### 1. Test Minting
 ```
 ✅ User clicks "Get RWA Tokens"
-✅ mint_rwa_tokens() is called
+✅ mint_rwa_tokenss() is called
 ✅ User receives 1000 RWA tokens
 ✅ User is automatically whitelisted
 ✅ RWA balance updates in UI
@@ -304,7 +304,7 @@ https://stellar.expert/explorer/testnet
 ## Summary
 
 **Priority 1 (Required for basic functionality):**
-1. Add `mint_rwa_tokens()` to RWA Token contract
+1. Add `mint_rwa_tokenss()` to RWA Token contract
 2. Modify `stake()` in Vault to auto-whitelist users
 3. Run oracle price bot
 

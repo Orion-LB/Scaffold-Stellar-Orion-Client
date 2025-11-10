@@ -103,7 +103,7 @@ const vaults = [
 #### StakeSection.tsx (Lines 82-105) - Get RWA Tokens:
 ```typescript
 const handleGetMockRWA = async () => {
-  // TODO: Replace with actual mint_rwa_tokens contract call when available
+  // TODO: Replace with actual mint_rwa_tokenss contract call when available
   toast.info("RWA Token minting function not yet implemented in backend.");
 
   // No asset selection modal
@@ -131,7 +131,7 @@ const collateralAssets = [
    - Appears when user clicks "Get RWA Tokens"
    - Shows available asset types with descriptions
    - User selects one asset type
-   - Calls `mint_rwa_tokens(user, asset_type, amount)`
+   - Calls `mint_rwa_tokenss(user, asset_type, amount)`
 
 2. **Multi-Contract Integration** (MAJOR UPDATE)
    - Map asset types to contract addresses
@@ -164,7 +164,7 @@ const collateralAssets = [
 6. 1x Oracle (prices stRWA)
 
 **Missing Functions:**
-- `mint_rwa_tokens()` in RWA contract (documented in BACKEND_REQUIREMENTS.md)
+- `mint_rwa_tokenss()` in RWA contract (documented in BACKEND_REQUIREMENTS.md)
 - Auto-whitelist in `stake()` function
 
 ### What Backend Needs for Multi-Asset:
@@ -385,7 +385,7 @@ Map<Address, Vec<RWABalance>>
 ### Phase 1: Ship Single-Asset MVP (1-2 days)
 
 **Backend:**
-1. Add `mint_rwa_tokens()` to existing RWA contract
+1. Add `mint_rwa_tokenss()` to existing RWA contract
 2. Add auto-whitelist to existing `stake()` function
 3. Deploy/update contracts
 4. Run oracle bot with single price

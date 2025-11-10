@@ -28,16 +28,13 @@ import {
   Vault
 } from "lucide-react";
 import { useContractServices } from "@/hooks/useContractServices";
-import { toast } from "sonner";
-import {
-  AssetType,
-  getAllAssetTypes,
-  getAssetConfig,
-  createMockRWAServiceFromAddress,
-  createStRWAServiceFromAddress,
-  createVaultServiceFromAddress
-} from "@/services/contracts";
+import { SimulationService } from "@/services/localStorage/SimulationService";
+import toast from "@/lib/toast";
+import { AssetType, getAllAssetTypes, getAssetConfig, createMockRWAServiceFromAddress, createStRWAServiceFromAddress, createVaultServiceFromAddress } from "@/services/contracts";
+import { getProfile, simulateClaimYield, toggleAutoRepay } from "@/lib/localStorage";
+import { ASSET_NAMES } from "@/config/contracts";
 
+// Type for vault loan information
 interface VaultLoanInfo {
   borrowedAmount: number;
   hasLoan: boolean;
@@ -48,9 +45,9 @@ const ProfileSection = () => {
 
   // Auto-repay state per vault
   const [vaultAutoRepay, setVaultAutoRepay] = useState<Record<AssetType, boolean>>({
-    [AssetType.INVOICES]: false,
-    [AssetType.TBILLS]: false,
-    [AssetType.REALESTATE]: false,
+    'invoices': false,
+    'tbills': false,
+    'realestate': false,
   });
 
   // Multi-asset balances with mock data
@@ -60,19 +57,19 @@ const ProfileSection = () => {
     claimableYield: bigint;
     price: number; // USD price
   }>>({
-    [AssetType.INVOICES]: {
+    'invoices': {
       rwaBalance: 5000n * BigInt(10**18),
       stRwaBalance: 25000n * BigInt(10**18),
       claimableYield: 450n * BigInt(10**7),
       price: 1.05
     },
-    [AssetType.TBILLS]: {
+    'tbills': {
       rwaBalance: 3000n * BigInt(10**18),
       stRwaBalance: 15000n * BigInt(10**18),
       claimableYield: 280n * BigInt(10**7),
       price: 1.02
     },
-    [AssetType.REALESTATE]: {
+    'realestate': {
       rwaBalance: 2000n * BigInt(10**18),
       stRwaBalance: 10000n * BigInt(10**18),
       claimableYield: 320n * BigInt(10**7),
@@ -82,9 +79,9 @@ const ProfileSection = () => {
 
   // Mock vault-specific loan data
   const [vaultLoans, setVaultLoans] = useState<Record<AssetType, VaultLoanInfo>>({
-    [AssetType.INVOICES]: { borrowedAmount: 12000, hasLoan: true },
-    [AssetType.TBILLS]: { borrowedAmount: 7500, hasLoan: true },
-    [AssetType.REALESTATE]: { borrowedAmount: 0, hasLoan: false },
+    'invoices': { borrowedAmount: 12000, hasLoan: true },
+    'tbills': { borrowedAmount: 7500, hasLoan: true },
+    'realestate': { borrowedAmount: 0, hasLoan: false },
   });
 
   const [usdcBalance, setUsdcBalance] = useState<bigint>(8500n * BigInt(10**7));
@@ -93,40 +90,55 @@ const ProfileSection = () => {
   const {
     isConnected,
     address,
+    wallet,
     usdcService,
     lendingPoolService,
   } = useContractServices();
 
-  // Load data from contracts (disabled - using mock data)
+  // Load data from localStorage AND contracts
   useEffect(() => {
     if (!isConnected || !address) return;
 
-    // Mock data is already set in initial state
-    // Uncomment below to load real contract data
+    // First load from localStorage for immediate UI update
+    const profile = getProfile(address);
+    setAssetBalances(profile.assetBalances);
+    setVaultLoans(profile.vaultLoans);
+    setUsdcBalance(profile.usdcBalance);
+    setActiveLoan(profile.activeLoan);
+    setVaultAutoRepay(profile.vaultAutoRepay);
 
-    /*
-    const loadData = async () => {
+    // Then load from contracts to get fresh data
+    const loadContractData = async () => {
       try {
-        // Load USDC balance
-        const usdc = await usdcService.balance(address);
+        // Create wallet provider for read operations
+        const walletProvider = wallet.isConnected ? {
+          address: wallet.address!,
+          networkPassphrase: wallet.networkPassphrase,
+          signTransaction: wallet.signTransaction,
+        } : undefined;
+
+        // Load USDC balance from contract
+        const usdc = await usdcService.balance(address).catch(() => profile.usdcBalance);
         setUsdcBalance(usdc);
 
-        // Load loan data
+        // Load loan data from contract
         const loan = await lendingPoolService.get_loan(address).catch(() => null);
-        setActiveLoan(loan);
+        if (loan) {
+          setActiveLoan(loan);
+        }
 
-        // Load balances for each asset type
+        // Load balances for each asset type from contracts
         for (const assetType of getAllAssetTypes()) {
           const config = getAssetConfig(assetType);
 
-          const rwaService = createMockRWAServiceFromAddress(config.rwa);
-          const stRwaService = createStRWAServiceFromAddress(config.stRwa);
-          const vaultService = createVaultServiceFromAddress(config.vault);
+          const rwaService = createMockRWAServiceFromAddress(config.rwa, walletProvider);
+          const stRwaService = createStRWAServiceFromAddress(config.stRwa, walletProvider);
+          const vaultService = createVaultServiceFromAddress(config.vault, walletProvider);
 
           const [rwa, stRwa, yield_amount] = await Promise.all([
-            rwaService.balance(address),
-            stRwaService.balance(address),
-            vaultService.claimable_yield(address).catch(() => 0n),
+            rwaService.balance(address).catch(() => profile.assetBalances[assetType].rwaBalance),
+            stRwaService.balance(address).catch(() => profile.assetBalances[assetType].stRwaBalance),
+            vaultService.claimable_yield(address).catch(() => profile.assetBalances[assetType].claimableYield),
           ]);
 
           setAssetBalances(prev => ({
@@ -140,15 +152,18 @@ const ProfileSection = () => {
           }));
         }
       } catch (error) {
-        console.error("Failed to load profile data:", error);
+        console.error("Failed to load profile data from contracts:", error);
+        // On error, continue using localStorage data
       }
     };
 
-    loadData();
-    const interval = setInterval(loadData, 15000);
+    // Load contract data immediately
+    loadContractData();
+
+    // Refresh contract data every 15 seconds
+    const interval = setInterval(loadContractData, 15000);
     return () => clearInterval(interval);
-    */
-  }, [isConnected, address, usdcService, lendingPoolService]);
+  }, [isConnected, address, wallet, usdcService, lendingPoolService]);
 
   // Helper functions
   const formatBalance = (balance: bigint, decimals: number = 18) => {
@@ -242,15 +257,35 @@ const ProfileSection = () => {
 
     try {
       const config = getAssetConfig(assetType);
-      const vaultService = createVaultServiceFromAddress(config.vault);
 
-      await vaultService.claim_yield(address);
-      toast.success(`Claimed ${config.displayName} yield!`);
+      // Create wallet provider for contract call
+      const walletProvider = wallet.isConnected ? {
+        address: wallet.address!,
+        networkPassphrase: wallet.networkPassphrase,
+        signTransaction: wallet.signTransaction,
+      } : undefined;
 
-      // Refresh balances
+      if (!walletProvider) {
+        throw new Error("Wallet not connected");
+      }
+
+      toast.info("Claiming yield...");
+
+      // ✅ REAL CONTRACT CALL: claim_yield(user)
+      const vaultService = createVaultServiceFromAddress(config.vault, walletProvider);
+      const claimResult = await vaultService.claim_yield(address, walletProvider);
+
+      if (!claimResult.success) {
+        throw new Error(claimResult.error || "Claim failed");
+      }
+
+      // ✅ ALSO UPDATE LOCALSTORAGE (for UI consistency)
+      const claimedAmount = simulateClaimYield(address, assetType);
+
+      // Refresh balances from contracts
       const [yield_amount, usdc] = await Promise.all([
         vaultService.claimable_yield(address).catch(() => 0n),
-        usdcService.balance(address),
+        usdcService.balance(address).catch(() => data.claimableYield),
       ]);
 
       setAssetBalances(prev => ({
@@ -258,6 +293,9 @@ const ProfileSection = () => {
         [assetType]: { ...prev[assetType], claimableYield: yield_amount }
       }));
       setUsdcBalance(usdc);
+
+      const claimedUSD = (Number(claimedAmount) / 1e7).toFixed(2);
+      toast.success(`✅ Claimed $${claimedUSD} from ${config.displayName} vault!`);
     } catch (error: any) {
       console.error("Claim failed:", error);
       toast.error(error.message || "Claim failed");
@@ -707,10 +745,17 @@ const ProfileSection = () => {
                         <Switch
                           checked={vaultAutoRepay[assetType]}
                           onCheckedChange={(checked) => {
+                            if (!address) return;
+
+                            // Update localStorage
+                            toggleAutoRepay(address, assetType, checked);
+
+                            // Update UI state
                             setVaultAutoRepay(prev => ({
                               ...prev,
                               [assetType]: checked
                             }));
+
                             toast.success(
                               checked
                                 ? `Auto-repay enabled for ${config.displayName}`

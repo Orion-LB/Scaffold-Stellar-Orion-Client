@@ -201,14 +201,19 @@ export abstract class ContractService {
     
     for (const [key, value] of Object.entries(params)) {
       if (typeof value === 'string') {
-        // Check if it's an address
-        if (value.startsWith('G') && value.length === 56) {
+        // Treat Stellar account addresses (G...) and contract IDs (C...)
+        if ((value.startsWith('G') || value.startsWith('C')) && value.length === 56) {
           args.push(nativeToScVal(value, { type: 'address' }));
         } else {
           args.push(nativeToScVal(value, { type: 'string' }));
         }
       } else if (typeof value === 'number' || typeof value === 'bigint') {
-        args.push(nativeToScVal(value.toString(), { type: 'u64' }));
+        // Use i128 for values that represent amounts/prices to avoid u64 overflow
+        if (/amount|price/i.test(key)) {
+          args.push(nativeToScVal(value.toString(), { type: 'i128' }));
+        } else {
+          args.push(nativeToScVal(value.toString(), { type: 'u64' }));
+        }
       } else if (typeof value === 'boolean') {
         args.push(nativeToScVal(value, { type: 'bool' }));
       } else {

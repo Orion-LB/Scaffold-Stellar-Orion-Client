@@ -23,7 +23,7 @@ User clicks "Get RWA Tokens" button
     ↓
 Toast message: "Not implemented in backend"
     ↓
-(If implemented) mint_rwa_tokens(user, 1000 * 10^18)
+(If implemented) mint_rwa_tokenss(user, 1000 * 10^18)
     ↓
 User receives generic RWA tokens
     ↓
@@ -42,7 +42,7 @@ Modal appears with asset choices:
     ↓
 User selects "Invoice Financing RWA"
     ↓
-mint_rwa_tokens(user, asset_type: INVOICES, 100 * 10^18)
+mint_rwa_tokenss(user, asset_type: INVOICES, 100 * 10^18)
     ↓
 User receives 100 Invoice RWA tokens
 ```
@@ -98,12 +98,12 @@ Contract: STAKED_RWA_A (single contract)
 ```
 User on Stake tab
     ↓
-User's RWA token balances shown:
+User's RWA vault balances shown:
   - Invoices RWA: 100
   - TBills RWA: 0
   - Real Estate RWA: 0
     ↓
-User selects "Invoices RWA" to stake
+User selects "Invoices RWA token" to stake in Invoice Rwa Vault
     ↓
 User enters amount: 50
     ↓
@@ -166,12 +166,13 @@ User on Borrow tab
 User's platform token balances:
   - OrionInvoicesToken: 50
   - OrionTBillsToken: 0
-  - OrionRealEstateToken: 0
+  - OrionRealEstateToken: 60
     ↓
+    here user put the amoutn of asset he selected like lets say 100 usdc
 User selects collateral percentages:
-  - OrionInvoicesToken: 60% → 30 tokens
+  - OrionInvoicesToken: 60% → 30 tokens(value =60 usdc)
   - OrionTBillsToken: 0% → 0 tokens
-  - OrionRealEstateToken: 40% → 20 tokens
+  - OrionRealEstateToken: 40% → 20 tokens(value=40usdc)
   - Total: 100% ✅
     ↓
 approve(lending_pool, OrionInvoicesToken, 30)

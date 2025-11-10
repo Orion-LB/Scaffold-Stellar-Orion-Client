@@ -27,9 +27,9 @@ This document summarizes what the frontend has vs what the backend needs.
 
 ### CRITICAL: Missing Functions
 
-#### 1. **mint_rwa_tokens()** in RWA Token Contract
+#### 1. **mint_rwa_tokenss()** in RWA Token Contract
 ```rust
-pub fn mint_rwa_tokens(env: Env, to: Address, amount: i128) -> Result<(), Error>
+pub fn mint_rwa_tokenss(env: Env, to: Address, amount: i128) -> Result<(), Error>
 ```
 **Purpose:** Mint RWA tokens + auto-whitelist user
 **Used By:** "Get RWA Tokens" button in StakeSection
@@ -66,7 +66,7 @@ ProfileSection  → All of above + loan details
 **Flow:**
 ```
 Click "Get RWA Tokens"
-  → ❌ mint_rwa_tokens(user, 1000 * 10^18)  // MISSING
+  → ❌ mint_rwa_tokenss(user, 1000 * 10^18)  // MISSING
   → Auto-whitelist in same call
   → Refresh RWA balance
 ```
@@ -136,11 +136,11 @@ Click "Claim Yield"
 
 ## 🔧 Required Backend Changes
 
-### Change 1: Add mint_rwa_tokens()
+### Change 1: Add mint_rwa_tokenss()
 **File:** RWA Token Contract
 **Function:**
 ```rust
-pub fn mint_rwa_tokens(env: Env, to: Address, amount: i128) -> Result<(), Error> {
+pub fn mint_rwa_tokenss(env: Env, to: Address, amount: i128) -> Result<(), Error> {
     // 1. Mint tokens
     token::mint(&env, &to, amount);
 
@@ -155,8 +155,8 @@ pub fn mint_rwa_tokens(env: Env, to: Address, amount: i128) -> Result<(), Error>
 ```typescript
 // File: src/services/contracts/MockRWAService.ts
 // Add this method:
-async mint_rwa_tokens(to: string, amount: bigint) {
-  return this.invokeContract("mint_rwa_tokens", {
+async mint_rwa_tokenss(to: string, amount: bigint) {
+  return this.invokeContract("mint_rwa_tokenss", {
     to: this.createAddress(to),
     amount: amount
   });
@@ -189,7 +189,7 @@ pub fn stake(env: Env, user: Address, amount: i128) -> Result<(), Error> {
 ## 📦 Deployment Checklist
 
 ### Pre-Deploy
-- [ ] Add `mint_rwa_tokens()` to RWA contract
+- [ ] Add `mint_rwa_tokenss()` to RWA contract
 - [ ] Modify `stake()` in Vault contract
 - [ ] Test both functions locally
 

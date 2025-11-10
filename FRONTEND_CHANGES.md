@@ -382,7 +382,7 @@ const handleSelectAssetForMinting = async (assetType: AssetType) => {
   const rwaService = new MockRWAService(config.rwa);
 
   try {
-    await rwaService.mint_rwa_tokens(address, 100n * 10n ** 18n);
+    await rwaService.mint_rwa_tokenss(address, 100n * 10n ** 18n);
     await fetchBalances();
   } catch (error: any) {
     throw new Error(error.message || 'Failed to mint tokens');
