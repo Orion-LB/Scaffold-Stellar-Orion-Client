@@ -20,6 +20,8 @@ export interface AssetBalance {
 export interface VaultLoanInfo {
   borrowedAmount: number;
   hasLoan: boolean;
+  // collateral locked (in token units, not contract units) for simulation purposes
+  collateralLocked?: number;
 }
 
 export interface Transaction {
@@ -78,9 +80,9 @@ const DEFAULT_ASSET_BALANCES: Record<AssetType, AssetBalance> = {
 };
 
 const DEFAULT_VAULT_LOANS: Record<AssetType, VaultLoanInfo> = {
-  [AssetType.INVOICES]: { borrowedAmount: 12000, hasLoan: true },
-  [AssetType.TBILLS]: { borrowedAmount: 7500, hasLoan: true },
-  [AssetType.REALESTATE]: { borrowedAmount: 0, hasLoan: false },
+  [AssetType.INVOICES]: { borrowedAmount: 12000, hasLoan: true, collateralLocked: 12000 },
+  [AssetType.TBILLS]: { borrowedAmount: 7500, hasLoan: true, collateralLocked: 7500 },
+  [AssetType.REALESTATE]: { borrowedAmount: 0, hasLoan: false, collateralLocked: 0 },
 };
 
 const DEFAULT_TRANSACTIONS: Transaction[] = [
@@ -515,10 +517,17 @@ export function simulateBorrow(
   profile.usdcBalance += amount;
 
   // Update vault loan
+  const collateralTokens = Number(collateralAmount) / 1e18;
   profile.vaultLoans[assetType] = {
     borrowedAmount: Number(amount) / 1e7,
     hasLoan: true,
+    collateralLocked: collateralTokens,
   };
+
+  // Lock collateral: deduct stRWA from user's balance
+  const balances = profile.assetBalances[assetType];
+  balances.stRwaBalance -= collateralAmount;
+  profile.assetBalances[assetType] = balances;
 
   saveProfile(profile);
 
@@ -544,16 +553,83 @@ export function simulateRepay(
   const loanInfo = profile.vaultLoans[assetType];
   const newBorrowed = loanInfo.borrowedAmount - (Number(amount) / 1e7);
 
-  profile.vaultLoans[assetType] = {
-    borrowedAmount: Math.max(0, newBorrowed),
-    hasLoan: newBorrowed > 0,
-  };
+  // If loan fully repaid, release collateral back to stRWA balance
+  if (newBorrowed <= 0) {
+    // release collateralLocked back into stRwaBalance
+    const collateralToRelease = loanInfo.collateralLocked ? BigInt(Math.floor(loanInfo.collateralLocked * 1e18)) : 0n;
+    const balances = profile.assetBalances[assetType];
+    balances.stRwaBalance += collateralToRelease;
+    profile.assetBalances[assetType] = balances;
+
+    profile.vaultLoans[assetType] = {
+      borrowedAmount: 0,
+      hasLoan: false,
+      collateralLocked: 0,
+    };
+  } else {
+    profile.vaultLoans[assetType] = {
+      borrowedAmount: Math.max(0, newBorrowed),
+      hasLoan: newBorrowed > 0,
+      collateralLocked: loanInfo.collateralLocked,
+    };
+  }
 
   saveProfile(profile);
 
   // Add transaction
   const amountStr = `$${(Number(amount) / 1e7).toFixed(2)}`;
   addTransaction(address, "Repay", "USDC", amountStr);
+}
+
+/**
+ * Simulate auto-repay run: claim yields and apply them to repay loans where auto-repay enabled
+ */
+export function simulateAutoRepay(address: string): void {
+  const profile = getProfile(address);
+
+  // Iterate asset types
+  for (const [assetKey, enabled] of Object.entries(profile.vaultAutoRepay)) {
+    const assetType = assetKey as AssetType;
+    if (!enabled) continue;
+
+    const loan = profile.vaultLoans[assetType];
+    if (!loan || !loan.hasLoan) continue;
+
+    // Claim yield for asset
+    const claimed = profile.assetBalances[assetType].claimableYield;
+    if (claimed > 0n) {
+      // Reset yield and add to USDC balance
+      profile.assetBalances[assetType].claimableYield = 0n;
+      profile.usdcBalance += claimed;
+      addTransaction(address, "Claim", `${assetType} Vault`, `$${(Number(claimed) / 1e7).toFixed(2)}`);
+    }
+
+    // Apply any available USDC to repay the loan
+    const repayAmountAvailable = profile.usdcBalance;
+    if (repayAmountAvailable <= 0n) continue;
+
+    // Convert loan borrowedAmount (number) to contract units
+    const borrowedContractUnits = BigInt(Math.floor(loan.borrowedAmount * 1e7));
+    const repay = repayAmountAvailable >= borrowedContractUnits ? borrowedContractUnits : repayAmountAvailable;
+
+    if (repay > 0n) {
+      // Deduct USDC and adjust loan
+      profile.usdcBalance -= repay;
+      const newBorrowed = loan.borrowedAmount - (Number(repay) / 1e7);
+      if (newBorrowed <= 0) {
+        // release collateral
+        const collateralToRelease = loan.collateralLocked ? BigInt(Math.floor(loan.collateralLocked * 1e18)) : 0n;
+        profile.assetBalances[assetType].stRwaBalance += collateralToRelease;
+        profile.vaultLoans[assetType] = { borrowedAmount: 0, hasLoan: false, collateralLocked: 0 };
+      } else {
+        profile.vaultLoans[assetType] = { borrowedAmount: Math.max(0, newBorrowed), hasLoan: true, collateralLocked: loan.collateralLocked };
+      }
+
+      addTransaction(address, "Repay", "USDC", `$${(Number(repay) / 1e7).toFixed(2)}`);
+    }
+  }
+
+  saveProfile(profile);
 }
 
 // ============================================================================

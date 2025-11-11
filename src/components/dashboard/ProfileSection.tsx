@@ -31,7 +31,7 @@ import { useContractServices } from "@/hooks/useContractServices";
 import { SimulationService } from "@/services/localStorage/SimulationService";
 import toast from "@/lib/toast";
 import { AssetType, getAllAssetTypes, getAssetConfig, createMockRWAServiceFromAddress, createStRWAServiceFromAddress, createVaultServiceFromAddress } from "@/services/contracts";
-import { getProfile, simulateClaimYield, toggleAutoRepay } from "@/lib/localStorage";
+import { getProfile, simulateClaimYield, toggleAutoRepay, simulateAutoRepay } from "@/lib/localStorage";
 import { ASSET_NAMES } from "@/config/contracts";
 
 // Type for vault loan information
@@ -162,7 +162,26 @@ const ProfileSection = () => {
 
     // Refresh contract data every 15 seconds
     const interval = setInterval(loadContractData, 15000);
-    return () => clearInterval(interval);
+
+    // Run auto-repay simulation periodically (if enabled)
+    const autoRepayInterval = setInterval(() => {
+      try {
+        simulateAutoRepay(address);
+        // Refresh local view after auto repay run
+        const profileAfter = getProfile(address);
+        setAssetBalances(profileAfter.assetBalances);
+        setVaultLoans(profileAfter.vaultLoans);
+        setUsdcBalance(profileAfter.usdcBalance);
+        setVaultAutoRepay(profileAfter.vaultAutoRepay);
+      } catch (err) {
+        // ignore
+      }
+    }, 15000);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(autoRepayInterval);
+    };
   }, [isConnected, address, wallet, usdcService, lendingPoolService]);
 
   // Helper functions

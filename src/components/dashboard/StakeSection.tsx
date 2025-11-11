@@ -212,7 +212,24 @@ const StakeSection = () => {
       setStRwaBalance(balances.stRwaBalance);
     } catch (error: any) {
       console.error("Staking failed:", error);
-      toast.error(error.message || "Staking failed. Please try again.");
+      
+      // Check if it's a whitelist error
+      if (error.message && error.message.includes('not whitelisted')) {
+        toast.error(
+          <div className="flex flex-col gap-2">
+            <div className="font-semibold">❌ Whitelisting Required</div>
+            <div className="text-sm">
+              User must be whitelisted by admin before staking.
+            </div>
+            <div className="text-xs text-gray-600">
+              Check browser console for exact commands to run.
+            </div>
+          </div>,
+          { duration: 8000 }
+        );
+      } else {
+        toast.error(error.message || "Staking failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

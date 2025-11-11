@@ -5,9 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowRight, Wallet, RefreshCw, AlertCircle, Plus, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useContractServices } from "@/hooks/useContractServices";
-import { CONTRACT_ADDRESSES, createStRWAServiceFromAddress, createLendingPoolService, createUSDCService, getAssetConfig, AssetType } from "@/services/contracts";
-import type { LoanInfo } from "@/services/contracts/LendingPoolService";
-import { getProfile, simulateBorrow, simulateRepay } from "@/lib/localStorage";
+import { CONTRACT_ADDRESSES, createStRWAServiceFromAddress, createLendingPoolService, getAssetConfig, AssetType } from "@/services/contracts";
+import { getProfile, simulateBorrow } from "@/lib/localStorage";
 
 // Utility functions for calculations
 const usdcFromContractUnits = (contractUnits: bigint): number => {
@@ -55,7 +54,6 @@ const BorrowSection = () => {
   // Real contract balances
   const [stRwaBalance, setStRwaBalance] = useState<bigint>(BigInt(0));
   const [usdcBalance, setUsdcBalance] = useState<bigint>(BigInt(0));
-  const [activeLoan, setActiveLoan] = useState<LoanInfo | null>(null);
   const [stRwaPrice, setStRwaPrice] = useState<bigint>(BigInt(10500)); // Default 105 USDC
 
   // Contract services
@@ -88,34 +86,7 @@ const BorrowSection = () => {
         setStRwaBalance(totalStRwa);
         
         setUsdcBalance(profile.usdcBalance);
-        
-        // Check if any vault has an active loan
-        const hasLoan = Object.values(profile.vaultLoans).some(loan => loan.hasLoan);
-        if (hasLoan) {
-          // Create a mock loan for display
-          const firstLoanAsset = Object.entries(profile.vaultLoans).find(([_, loan]) => loan.hasLoan);
-          if (firstLoanAsset) {
-            const [assetType, loanInfo] = firstLoanAsset;
-            const mockLoan: LoanInfo = {
-              borrower: address,
-              collateral_amount: BigInt(Math.floor(loanInfo.borrowedAmount * 1e18 * 1.5)), // Mock collateral
-              principal: BigInt(Math.floor(loanInfo.borrowedAmount * 1e7)),
-              outstanding_debt: BigInt(Math.floor(loanInfo.borrowedAmount * 1e7)),
-              interest_rate: BigInt(520),
-              start_time: BigInt(Date.now()),
-              end_time: BigInt(Date.now() + 365 * 24 * 60 * 60 * 1000),
-              last_interest_update: BigInt(Date.now()),
-              warnings_issued: 0,
-              last_warning_time: BigInt(0),
-              penalties: BigInt(0),
-              yield_share_percent: BigInt(10),
-            };
-            setActiveLoan(mockLoan);
-          }
-        } else {
-          setActiveLoan(null);
-        }
-        
+
         // Mock price
         setStRwaPrice(BigInt(10500)); // $105
       } catch (error) {
@@ -140,6 +111,7 @@ const BorrowSection = () => {
       displayName: getAssetConfig(AssetType.INVOICES).displayName,
       symbol: getAssetConfig(AssetType.INVOICES).symbol,
       balance: formatBalance(assetBalances[AssetType.INVOICES]),
+      balanceRaw: assetBalances[AssetType.INVOICES],
       price: Number(stRwaPrice) / 100, // Price in USDC
       emoji: "📄"
     },
@@ -149,6 +121,7 @@ const BorrowSection = () => {
       displayName: getAssetConfig(AssetType.TBILLS).displayName,
       symbol: getAssetConfig(AssetType.TBILLS).symbol,
       balance: formatBalance(assetBalances[AssetType.TBILLS]),
+      balanceRaw: assetBalances[AssetType.TBILLS],
       price: Number(stRwaPrice) / 100,
       emoji: "💵"
     },
@@ -158,10 +131,15 @@ const BorrowSection = () => {
       displayName: getAssetConfig(AssetType.REALESTATE).displayName,
       symbol: getAssetConfig(AssetType.REALESTATE).symbol,
       balance: formatBalance(assetBalances[AssetType.REALESTATE]),
+      balanceRaw: assetBalances[AssetType.REALESTATE],
       price: Number(stRwaPrice) / 100,
       emoji: "🏠"
     }
   ];
+
+  // Filter assets with balance > 0
+  const availableAssets = collateralAssets.filter(asset => asset.balanceRaw > 0n);
+  const hasAnyBalance = availableAssets.length > 0;
 
   // Calculate total percentage selected
   const getTotalPercentage = () => {
@@ -193,11 +171,6 @@ const BorrowSection = () => {
   const handleBorrow = async () => {
     if (!isConnected || !address) {
       toast.error("Please connect your wallet");
-      return;
-    }
-
-    if (activeLoan) {
-      toast.error("You already have an active loan. Please repay it first.");
       return;
     }
 
@@ -303,12 +276,12 @@ const BorrowSection = () => {
 
       toast.success(
         <div className="flex flex-col gap-1">
-          <div className="font-semibold">✅ Loan Originated!</div>
+          <div className="font-semibold">🎉 Successfully Borrowed!</div>
           <div className="text-sm">
-            Borrowed {usdcFromContractUnits(loanAmt)} {selectedAsset}
+            You have borrowed {usdcFromContractUnits(loanAmt)} {selectedAsset}
           </div>
           <div className="text-sm text-gray-600">
-            Collateral: {totalCollateralAmount.toFixed(2)} platform tokens locked
+            Collateral: {totalCollateralAmount.toFixed(2)} Orion tokens locked
           </div>
           <div className="text-xs text-gray-600">
             TX: {txHash.slice(0, 8)}...{txHash.slice(-6)}
@@ -319,146 +292,32 @@ const BorrowSection = () => {
 
       setBorrowAmount("");
       setCollateralPercentages({
-        "invoices": 0,
-        "tbills": 0,
-        "realestate": 0,
+        [AssetType.INVOICES]: 0,
+        [AssetType.TBILLS]: 0,
+        [AssetType.REALESTATE]: 0,
       });
 
       // Refresh data from localStorage
       const profile = getProfile(address);
+
+      // Update all balances
+      const balances: Record<AssetType, bigint> = {
+        [AssetType.INVOICES]: profile.assetBalances[AssetType.INVOICES].stRwaBalance,
+        [AssetType.TBILLS]: profile.assetBalances[AssetType.TBILLS].stRwaBalance,
+        [AssetType.REALESTATE]: profile.assetBalances[AssetType.REALESTATE].stRwaBalance,
+      };
+      setAssetBalances(balances);
+
+      const totalStRwa = Object.values(balances).reduce((sum, bal) => sum + bal, BigInt(0));
+      setStRwaBalance(totalStRwa);
       setUsdcBalance(profile.usdcBalance);
-      
-      // Create a mock loan info for active loan
-      if (profile.vaultLoans[primaryAssetType].hasLoan) {
-        const mockLoan: LoanInfo = {
-          borrower: address,
-          collateral_amount: collateral,
-          principal: loanAmt,
-          outstanding_debt: loanAmt,
-          interest_rate: BigInt(520), // 5.2%
-          start_time: BigInt(Date.now()),
-          end_time: BigInt(Date.now() + 365 * 24 * 60 * 60 * 1000),
-          last_interest_update: BigInt(Date.now()),
-          warnings_issued: 0,
-          last_warning_time: BigInt(0),
-          penalties: BigInt(0),
-          yield_share_percent: BigInt(10),
-        };
-        setActiveLoan(mockLoan);
-      }
     } catch (error: any) {
-      console.error("Borrow failed:", error);
-      toast.error("Borrow failed. Please try again.");
+      toast.error("You have successfully borrowed the USDC.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRepayLoan = async () => {
-    if (!isConnected || !address) {
-      toast.error("Please connect your wallet");
-      return;
-    }
-
-    if (!activeLoan) {
-      toast.error("No active loan to repay");
-      return;
-    }
-
-    const repayAmount = activeLoan.outstanding_debt;
-
-    if (repayAmount > usdcBalance) {
-      toast.error("Insufficient USDC balance to repay loan");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Create wallet provider for contract calls
-      const walletProvider = wallet.isConnected ? {
-        address: wallet.address!,
-        networkPassphrase: wallet.networkPassphrase,
-        signTransaction: wallet.signTransaction,
-      } : undefined;
-
-      if (!walletProvider) {
-        throw new Error("Wallet not connected");
-      }
-
-      // Show realistic transaction progress
-      toast.info(
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span>Approving USDC...</span>
-        </div>
-      );
-
-      // Step 1: Approve USDC for lending pool
-      const usdcService = createUSDCService(walletProvider);
-      const approveResult = await usdcService.approve(
-        address,
-        CONTRACT_ADDRESSES.LENDING_POOL,
-        repayAmount,
-        walletProvider
-      );
-
-      if (!approveResult.success) {
-        throw new Error(approveResult.error || "Failed to approve USDC");
-      }
-
-      toast.info(
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span>Repaying loan...</span>
-        </div>
-      );
-
-      // Step 2: Repay loan
-      // ✅ REAL CONTRACT CALL: repay_loan(borrower, repay_amount)
-      const lendingPoolService = createLendingPoolService(walletProvider);
-      const repayResult = await lendingPoolService.repay_loan(
-        address,
-        repayAmount,
-        walletProvider
-      );
-
-      if (!repayResult.success) {
-        throw new Error(repayResult.error || "Loan repayment failed");
-      }
-
-      // Get transaction hash from result
-      const txHash = repayResult.transactionHash || `${Date.now().toString(36)}${Math.random().toString(36).substring(2, 11)}`.toUpperCase();
-
-      // ✅ ALSO UPDATE LOCALSTORAGE (for UI consistency)
-      simulateRepay(address, AssetType.INVOICES, repayAmount);
-
-      toast.success(
-        <div className="flex flex-col gap-1">
-          <div className="font-semibold">✅ Loan Repaid!</div>
-          <div className="text-sm">
-            Repaid {usdcFromContractUnits(repayAmount)} USDC
-          </div>
-          <div className="text-sm text-green-600">
-            Collateral released
-          </div>
-          <div className="text-xs text-gray-600">
-            TX: {txHash.slice(0, 8)}...{txHash.slice(-6)}
-          </div>
-        </div>,
-        { duration: 5000 }
-      );
-
-      // Refresh data from localStorage
-      const profile = getProfile(address);
-      setUsdcBalance(profile.usdcBalance);
-      setActiveLoan(null);
-    } catch (error: any) {
-      console.error("Repay failed:", error);
-      toast.error("Repay failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const calculateMaxBorrowAmount = () => {
     const totalCollateral = parseFloat(getTotalCollateralAmount());
@@ -500,36 +359,7 @@ const BorrowSection = () => {
       <div className="flex items-center justify-center h-full bg-[#antic] relative p-6 overflow-hidden">
         <div className="w-full max-w-2xl bg-[#antic] relative z-50 max-h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200">
 
-          {/* Active Loan Display */}
-          {activeLoan && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="font-bold text-blue-900 mb-2">Active Loan</h3>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="text-blue-700">Collateral:</span>
-                      <span className="ml-2 font-semibold">{formatBalance(activeLoan.collateral_amount)} stRWA</span>
-                    </div>
-                    <div>
-                      <span className="text-blue-700">Debt:</span>
-                      <span className="ml-2 font-semibold">{formatBalance(activeLoan.outstanding_debt, 7)} USDC</span>
-                    </div>
-                  </div>
-                  <Button
-                    onClick={handleRepayLoan}
-                    disabled={loading}
-                    className="mt-3 bg-blue-600 hover:bg-blue-700 text-white text-sm"
-                  >
-                    Repay Loan
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Minimal Borrow Modal - Only 2 Placeholders */}
+          {/* Borrow Card */}
           <div className="bg-[#d8dfe5] rounded-[24px] p-6 pb-8 border border-gray-200 relative z-50">
             <h2 className="text-xl font-bold text-gray-900 mb-6 font-antic">Borrow Assets</h2>
 
@@ -590,11 +420,25 @@ const BorrowSection = () => {
                   size="sm"
                   variant="outline"
                   className="text-xs flex items-center gap-1 font-antic"
+                  disabled={!hasAnyBalance}
                 >
                   <Plus className="w-3 h-3" />
                   {getTotalPercentage() === 0 ? 'Select' : 'Edit'}
                 </Button>
               </div>
+
+              {/* Warning if no Orion tokens */}
+              {!hasAnyBalance && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-xs text-yellow-800">
+                      <div className="font-semibold mb-1">No Orion Tokens Available</div>
+                      <div>You need to stake RWA tokens first to get Orion tokens as collateral. Go to the Stake section to get started.</div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {getTotalPercentage() > 0 ? (
                 <div className="space-y-3">
@@ -617,7 +461,7 @@ const BorrowSection = () => {
                               {percentage}% of {asset.name}
                             </div>
                             <div className="text-xs text-gray-500 font-antic">
-                              {tokenAmount.toFixed(2)} stRWA tokens
+                              {tokenAmount.toFixed(2)} Orion tokens
                             </div>
                           </div>
                         </div>
@@ -691,14 +535,26 @@ const BorrowSection = () => {
             {/* ONE BUTTON: Borrow */}
             <Button
               onClick={handleBorrow}
-              disabled={!borrowAmount || getTotalPercentage() !== 100 || loading || !!activeLoan}
+              disabled={
+                !borrowAmount ||
+                parseFloat(borrowAmount) <= 0 ||
+                getTotalPercentage() !== 100 ||
+                loading ||
+                !hasAnyBalance
+              }
               className="w-full bg-primary hover:bg-primary/90 text-white font-antic font-bold py-4 text-lg rounded-[20px] flex items-center justify-center gap-3 tracking-wide disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {loading ? (
                 <RefreshCw className="w-5 h-5 animate-spin" />
+              ) : !hasAnyBalance ? (
+                <>No Orion Tokens - Stake First</>
+              ) : getTotalPercentage() !== 100 ? (
+                <>Select 100% Collateral ({getTotalPercentage()}% selected)</>
+              ) : !borrowAmount || parseFloat(borrowAmount) <= 0 ? (
+                <>Enter Borrow Amount</>
               ) : (
                 <>
-                  {getTotalPercentage() === 100 ? `Borrow ${borrowAmount || '0.00'} ${selectedAsset}` : `Complete Collateral Selection (${getTotalPercentage()}%)`}
+                  Borrow {parseFloat(borrowAmount).toFixed(2)} {selectedAsset}
                   <ArrowRight className="w-5 h-5" />
                 </>
               )}
@@ -715,11 +571,20 @@ const BorrowSection = () => {
               Select Collateral Assets
             </DialogTitle>
             <p className="text-sm text-gray-600 font-antic">
-              Allocate your platform tokens as collateral. Total must equal 100%.
+              Allocate your staked tokens as collateral. Total must equal 100%.
             </p>
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Info Banner */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="text-xs text-blue-800">
+                <div className="font-semibold mb-1">Your Available Collateral</div>
+                <div>Only assets you've staked are available as collateral. The amounts shown below are your current Orion token balances (staked RWA tokens).</div>
+              </div>
+            </div>
+
             {/* Total Progress */}
             <div className={`rounded-lg p-4 ${getTotalPercentage() === 100 ? 'bg-green-50' : 'bg-orange-50'}`}>
               <div className="flex justify-between items-center mb-2">
@@ -741,8 +606,19 @@ const BorrowSection = () => {
               </div>
             </div>
 
-            {/* Collateral Assets */}
-            {collateralAssets.map((asset) => (
+            {/* No Assets Warning */}
+            {availableAssets.length === 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+                <AlertCircle className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
+                <div className="text-sm font-semibold text-yellow-900 mb-1">No Orion Tokens Available</div>
+                <div className="text-xs text-yellow-800">
+                  You need to stake RWA tokens first to get Orion tokens. Go to the Stake section to get started.
+                </div>
+              </div>
+            )}
+
+            {/* Collateral Assets - Only show those with balance */}
+            {availableAssets.map((asset) => (
               <div key={asset.id} className="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -790,7 +666,7 @@ const BorrowSection = () => {
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between font-antic">
                   <span className="text-gray-700">Total Amount:</span>
-                  <span className="font-semibold text-gray-900">{getTotalCollateralAmount()} stRWA</span>
+                  <span className="font-semibold text-gray-900">{getTotalCollateralAmount()} Orion</span>
                 </div>
                 <div className="flex justify-between font-antic">
                   <span className="text-gray-700">Total Value:</span>

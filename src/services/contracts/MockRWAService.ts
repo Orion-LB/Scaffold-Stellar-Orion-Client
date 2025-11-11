@@ -180,11 +180,22 @@ export class MockRWAService extends ContractService {
    * @param wallet - Wallet provider for signing
    */
   async approve(from: string, spender: string, amount: bigint, wallet?: StellarWalletProvider): Promise<TransactionResult> {
-    // Set expiration_ledger to a high value (1000000) to avoid expiration issues
-    // This is safe for testnet. In production, calculate based on current ledger + desired duration
-    const expiration_ledger = 1000000;
+    // Get current ledger and calculate proper expiration
+    // According to stake.md: current ledger + 100000 (~5.7 days)
+    let expiration_ledger = 1000000; // fallback
+    
+    try {
+      const ledgerResponse = await this.rpcServer.getLatestLedger();
+      expiration_ledger = ledgerResponse.sequence + 100000;
+      console.log(`📅 Current ledger: ${ledgerResponse.sequence}, expiration: ${expiration_ledger}`);
+    } catch (err) {
+      console.warn('⚠️  Could not fetch current ledger, using fallback expiration');
+    }
     
     console.log(`🔐 Attempting to approve ${amount} tokens for ${spender}`);
+    console.log(`   From: ${from}`);
+    console.log(`   Spender: ${spender}`);
+    console.log(`   Expiration ledger: ${expiration_ledger}`);
     
     const result = await this.invokeContract('approve', { 
       from,           // Address - token owner
@@ -193,23 +204,54 @@ export class MockRWAService extends ContractService {
       expiration_ledger  // u32 - ledger number when approval expires
     }, wallet);
 
-    // WORKAROUND: If approval fails with Error #102 (user not whitelisted),
-    // simulate success for demo purposes since whitelisting requires admin access
+    // Check if approval actually succeeded on-chain
     if (!result.success) {
       const errorStr = String(result.error || '');
-      if (errorStr.includes('Error(Contract, #102)') || errorStr.includes('not authorized')) {
-        console.warn('⚠️  WORKAROUND: Approval failed (user not whitelisted) - simulating success for demo');
-        console.warn('   Real solution: Admin must whitelist user first with:');
-        console.warn(`   stellar contract invoke --id ${this.contractId} --source-account testnet-deployer --network testnet -- allow_user --user ${from} --operator <ADMIN_ADDRESS>`);
+      
+      console.error('❌ Approval FAILED on-chain!');
+      console.error('   Error:', errorStr);
+      
+      if (errorStr.includes('Error(Contract, #102)') || errorStr.includes('not authorized') || errorStr.includes('not whitelisted')) {
+        console.error('');
+        console.error('🔴 ROOT CAUSE: User is NOT WHITELISTED on RWA token contract!');
+        console.error('');
+        console.error('📋 REQUIRED ACTION - Run these commands:');
+        console.error('');
+        console.error('1️⃣  Whitelist USER:');
+        console.error(`stellar contract invoke \\`);
+        console.error(`  --id ${this.contractId} \\`);
+        console.error(`  --source-account testnet-deployer \\`);
+        console.error(`  --network testnet \\`);
+        console.error(`  -- allow_user \\`);
+        console.error(`  --user ${from} \\`);
+        console.error(`  --operator <ADMIN_ADDRESS>`);
+        console.error('');
+        console.error('2️⃣  Whitelist VAULT (so it can receive tokens):');
+        console.error(`stellar contract invoke \\`);
+        console.error(`  --id ${this.contractId} \\`);
+        console.error(`  --source-account testnet-deployer \\`);
+        console.error(`  --network testnet \\`);
+        console.error(`  -- allow_user \\`);
+        console.error(`  --user ${spender} \\`);
+        console.error(`  --operator <ADMIN_ADDRESS>`);
+        console.error('');
+        console.error('⚠️  NOTE: Approval was NOT created on blockchain.');
+        console.error('⚠️  Staking will FAIL because vault has no approval to transfer tokens!');
+        console.error('');
         
-        return {
-          success: true,
-          transactionHash: `SIM_APPROVE_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 11)}`.toUpperCase(),
-          result: null
-        };
+        // Return failure instead of simulating success
+        // This will prevent the stake step from even attempting
+        throw new Error('User not whitelisted on RWA token contract. Admin must whitelist both user and vault before staking can work.');
       }
+      
+      // For other errors, also throw
+      throw new Error(`Approval failed: ${errorStr}`);
     }
 
+    // Approval succeeded on-chain!
+    console.log('✅ Approval succeeded on blockchain!');
+    console.log(`   Transaction: ${result.transactionHash}`);
+    
     return result;
   }
 
